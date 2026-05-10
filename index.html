@@ -1388,8 +1388,13 @@ function quickStart(){
 function renderFmtPicker(){
   const g=document.getElementById('fmtGrid');
   g.innerHTML='';
-  Object.keys(FORMATS).forEach(k=>{
+  // Only show formats for the current team's sport — soccer team sees soccer formats, netball netball
+  const sportFormats=getSport(currentTeam).formats;
+  // Adapt the grid to the number of formats for the sport so they fit nicely
+  g.style.gridTemplateColumns=`repeat(${Math.min(sportFormats.length,5)},1fr)`;
+  sportFormats.forEach(k=>{
     const f=FORMATS[k];
+    if(!f)return;
     const c=document.createElement('div');
     c.className='chip'+(curFmt===k?' sel':'');
     c.style.cssText='padding:10px 4px;font-size:13px';
