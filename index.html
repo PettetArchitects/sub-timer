@@ -242,11 +242,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   </div>
 </div>
 
-<!-- ===== GRADE PICKER (NEW TEAM SETUP) ===== -->
-<div id="gradePicker" class="scr">
+<!-- ===== SPORT PICKER (NEW TEAM SETUP, STEP 1) ===== -->
+<div id="sportPicker" class="scr">
   <div class="hdr">
     <div class="hdr-row">
       <button class="back-btn" onclick="showScr('home')">← Cancel</button>
+      <h1>NEW TEAM</h1>
+      <div style="width:60px"></div>
+    </div>
+  </div>
+  <div class="sec">
+    <h2>What sport do you coach?</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:12px">More sports on the way — tell me what you'd like next.</p>
+    <div id="sportGrid" class="chip-grid"></div>
+  </div>
+</div>
+
+<!-- ===== FORMAT PICKER (NEW TEAM SETUP, STEP 2) ===== -->
+<div id="gradePicker" class="scr">
+  <div class="hdr">
+    <div class="hdr-row">
+      <button class="back-btn" onclick="showScr('sportPicker')">← Back</button>
       <h1>NEW TEAM</h1>
       <div style="width:60px"></div>
     </div>
@@ -888,7 +904,27 @@ function selectTeam(id){
 }
 
 // ===== TEAM EDITOR =====
+const SPORTS=[
+  {key:'soccer',label:'Soccer',icon:'⚽',available:true},
+  {key:'netball',label:'Netball',icon:'🏐',available:false,note:'Coming soon'}
+];
 function newTeam(){
+  const g=document.getElementById('sportGrid');
+  g.innerHTML='';
+  SPORTS.forEach(s=>{
+    const c=document.createElement('div');
+    c.className='chip';
+    c.style.cssText='padding:20px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;'+(s.available?'':'opacity:0.5;cursor:not-allowed');
+    c.innerHTML=`<div style="font-size:30px;line-height:1">${s.icon}</div>
+      <div style="font-size:14px;font-weight:800;color:${s.available?'#e94560':'#888'}">${s.label}</div>
+      ${s.note?`<div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#666;background:#1a1a2e;padding:2px 6px;border-radius:4px">${s.note}</div>`:''}`;
+    if(s.available)c.onclick=()=>pickSport(s.key);
+    g.appendChild(c);
+  });
+  showScr('sportPicker');
+}
+function pickSport(sportKey){
+  // Currently only soccer goes to format picker
   const g=document.getElementById('gradeGrid');
   g.innerHTML='';
   Object.keys(FORMATS).forEach(k=>{
@@ -897,13 +933,13 @@ function newTeam(){
     c.className='chip';
     c.style.cssText='padding:18px 10px';
     c.innerHTML=`<div style="font-size:18px;font-weight:800;color:#e94560">${f.label}</div>`;
-    c.onclick=()=>pickFormat(k);
+    c.onclick=()=>pickFormat(k,sportKey);
     g.appendChild(c);
   });
   showScr('gradePicker');
 }
-function pickFormat(fmtKey){
-  editingTeam={id:Date.now(),name:'',format:fmtKey,players:['']};
+function pickFormat(fmtKey,sportKey){
+  editingTeam={id:Date.now(),name:'',sport:sportKey||'soccer',format:fmtKey,players:['']};
   document.getElementById('editTitle').textContent='New Team';
   document.getElementById('delTeamBtn').style.display='none';
   document.getElementById('teamNameInput').placeholder=`e.g. Dragonflies ${FORMATS[fmtKey].age}`;
