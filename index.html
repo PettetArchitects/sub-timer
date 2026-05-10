@@ -188,6 +188,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .pos-mini-mid{background:#1a1a3e;color:#7b8cff}
 .pos-mini-wng{background:#1a2a1a;color:#8dd68d}
 .pos-mini-fwd{background:#2a1f0a;color:#f0a500}
+/* AI loading spinner + shimmer */
+@keyframes ai-spin{to{transform:rotate(360deg)}}
+@keyframes ai-shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes ai-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.ai-spinner{width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(91,192,222,.25);border-top-color:#5bc0de;animation:ai-spin .8s linear infinite;flex-shrink:0}
+.ai-loading{background:linear-gradient(90deg,rgba(91,192,222,.12),rgba(167,139,250,.22),rgba(91,192,222,.12)) !important;background-size:200% 100% !important;animation:ai-shimmer 1.6s linear infinite}
+.ai-pulse{animation:ai-pulse 1.4s ease-in-out infinite}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -981,6 +988,28 @@ function fileToBase64(file){
     r.readAsDataURL(file);
   });
 }
+const ROSTER_BTN_DEFAULT_HTML=`<span style="font-size:22px">✨</span>
+      <span style="text-align:left">
+        <span style="display:block;font-size:14px;font-weight:800;color:#5bc0de;letter-spacing:.3px">Auto-fill from photo</span>
+        <span style="display:block;font-size:11px;color:#999;font-weight:600;margin-top:2px">AI reads your team list — snap or upload</span>
+      </span>`;
+function setRosterBtnLoading(loading,label){
+  const btn=document.getElementById('rosterImportBtn');
+  if(!btn)return;
+  if(loading){
+    btn.classList.add('ai-loading');
+    btn.disabled=true;
+    btn.innerHTML=`<span class="ai-spinner"></span>
+      <span style="text-align:left">
+        <span class="ai-pulse" style="display:block;font-size:14px;font-weight:800;color:#5bc0de;letter-spacing:.3px">${label||'Reading your roster…'}</span>
+        <span style="display:block;font-size:11px;color:#999;font-weight:600;margin-top:2px">AI is scanning the image</span>
+      </span>`;
+  }else{
+    btn.classList.remove('ai-loading');
+    btn.disabled=false;
+    btn.innerHTML=ROSTER_BTN_DEFAULT_HTML;
+  }
+}
 async function handleRosterPhoto(inputEl){
   const file=inputEl.files&&inputEl.files[0];
   if(!file)return;
@@ -994,9 +1023,8 @@ async function handleRosterPhoto(inputEl){
     setRosterImportStatus('Image too large (max 8MB).','err');
     return;
   }
-  const btn=document.getElementById('rosterImportBtn');
-  btn.disabled=true;btn.style.opacity='0.6';
-  setRosterImportStatus('📷 Reading list…');
+  setRosterBtnLoading(true,'Reading your roster…');
+  setRosterImportStatus(null);
   try{
     const dataUrl=await fileToBase64(file);
     const{data,error}=await sb.functions.invoke('extract-roster',{body:{imageBase64:dataUrl}});
@@ -1021,7 +1049,7 @@ async function handleRosterPhoto(inputEl){
   }catch(e){
     setRosterImportStatus('Error: '+(e.message||String(e)),'err');
   }finally{
-    btn.disabled=false;btn.style.opacity='1';
+    setRosterBtnLoading(false);
   }
 }
 
