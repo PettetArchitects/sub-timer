@@ -1296,7 +1296,7 @@ function startGame(){
   G={half:1,secs:0,running:false,iv:null,raf:null,elapsedMs:0,lastTs:null,
     on:luOrd.slice(0,on),bench:luOrd.slice(on),
     gk:fmt.hasGk?gk1:null,pt:{},sd:[],ps:null,scoreUs:0,scoreThem:0,
-    pairs:rotPairs.map(p=>({on:[...p.on]})),pairIdx:0,oppFormation:null,
+    pairs:rotPairs.map(p=>({on:[...p.on]})),pairIdx:0,oppFormation:curFormation,
     log:[],startTime:new Date().toISOString()};
   avail.forEach(n=>G.pt[n]=0);
   renderG();showScr('s4');
