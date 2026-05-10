@@ -195,6 +195,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .ai-spinner{width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(91,192,222,.25);border-top-color:#5bc0de;animation:ai-spin .8s linear infinite;flex-shrink:0}
 .ai-loading{background:linear-gradient(90deg,rgba(91,192,222,.12),rgba(167,139,250,.22),rgba(91,192,222,.12)) !important;background-size:200% 100% !important;animation:ai-shimmer 1.6s linear infinite}
 .ai-pulse{animation:ai-pulse 1.4s ease-in-out infinite}
+/* Logo "subs warming up" loading animation — two teal dots pulse in stagger */
+@keyframes logo-sub-pulse{0%,55%,100%{transform:scale(1);opacity:1}25%{transform:scale(1.55);opacity:.65}}
+.logo-anim .sub-dot{transform-box:fill-box;transform-origin:center;animation:logo-sub-pulse 1.6s ease-in-out infinite}
+.logo-anim .sub-dot-2{animation-delay:.8s}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1098,7 +1102,14 @@ function setRosterBtnLoading(loading,label){
   if(loading){
     btn.classList.add('ai-loading');
     btn.disabled=true;
-    btn.innerHTML=`<span class="ai-spinner"></span>
+    btn.innerHTML=`<svg class="logo-anim" viewBox="0 0 40 60" width="30" height="45" aria-hidden="true" style="display:block;flex-shrink:0">
+        <circle cx="20" cy="10" r="3.4" fill="#00d4aa" class="sub-dot sub-dot-1"/>
+        <circle cx="8"  cy="28" r="3.4" fill="#e94560"/>
+        <circle cx="20" cy="28" r="3.4" fill="#e94560"/>
+        <circle cx="32" cy="28" r="3.4" fill="#00d4aa" class="sub-dot sub-dot-2"/>
+        <circle cx="14" cy="48" r="3.4" fill="#e94560"/>
+        <circle cx="26" cy="48" r="3.4" fill="#e94560"/>
+      </svg>
       <span style="text-align:left">
         <span class="ai-pulse" style="display:block;font-size:14px;font-weight:800;color:#5bc0de;letter-spacing:.3px">${label||'Reading your roster…'}</span>
         <span style="display:block;font-size:11px;color:#999;font-weight:600;margin-top:2px">AI is scanning the image</span>
