@@ -1853,18 +1853,18 @@ function renderRoster(){
     const oppPositions=[...FORMATIONS[curFmt][G.oppFormation]];
     if(fmtDef.hasGk) oppPositions.unshift(GK_POS);
     oppPositions.forEach(p=>{
-      const flipY=100-p.y;
-      let oppX=p.x;
-      // If overlapping any of our players, shift horizontally away from the player
+      let oppY=100-p.y;
+      const oppX=p.x;
+      // If overlapping any of our players, shift vertically away from the player
       for(const slot of playerSlots){
-        if(Math.abs(slot.pos.x-oppX)<8&&Math.abs(slot.pos.y-flipY)<8){
-          const dir=slot.pos.x>oppX?-1:1;
-          oppX=Math.max(6,Math.min(94,oppX+dir*12));
+        if(Math.abs(slot.pos.x-oppX)<8&&Math.abs(slot.pos.y-oppY)<8){
+          const dir=slot.pos.y>oppY?-1:1;
+          oppY=Math.max(4,Math.min(96,oppY+dir*10));
           break;
         }
       }
       const op=document.createElement('div');
-      op.style.cssText=`position:absolute;left:${oppX}%;top:${flipY}%;transform:translate(-50%,-50%);z-index:1;width:22px;height:22px;border-radius:50%;background:rgba(120,120,140,.18);border:1px dashed rgba(180,180,200,.45);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:rgba(200,200,220,.6);letter-spacing:.5px;pointer-events:none`;
+      op.style.cssText=`position:absolute;left:${oppX}%;top:${oppY}%;transform:translate(-50%,-50%);z-index:1;width:22px;height:22px;border-radius:50%;background:rgba(120,120,140,.18);border:1px dashed rgba(180,180,200,.45);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:rgba(200,200,220,.6);letter-spacing:.5px;pointer-events:none`;
       op.textContent=p.label;
       pitch.appendChild(op);
     });
