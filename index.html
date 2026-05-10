@@ -189,15 +189,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .pos-mini-wng{background:#1a2a1a;color:#8dd68d}
 .pos-mini-fwd{background:#2a1f0a;color:#f0a500}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app">
 
 <!-- ===== HOME: TEAM SELECT ===== -->
 <div id="home" class="scr active">
-  <div class="hdr">
-    <h1>SUB TIMER <span style="font-size:10px;color:#666;font-weight:600;letter-spacing:1px;vertical-align:middle">v1.1</span></h1>
+  <div class="hdr" style="position:relative">
+    <h1>SUB TIMER <span style="font-size:10px;color:#666;font-weight:600;letter-spacing:1px;vertical-align:middle">v1.2</span></h1>
     <div class="sub">Game Day Substitution Manager</div>
+    <div id="authChip" style="position:absolute;top:10px;right:12px"></div>
   </div>
   <div class="sec">
     <div id="resumeBanner" style="display:none;margin-bottom:12px;padding:12px;background:#1a2a14;border:1.5px solid #00d4aa;border-radius:10px">
@@ -216,6 +218,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <div id="teamList"></div>
     <button class="btn btn-r" onclick="newTeam()">+ New Team</button>
     <button class="btn btn-o" style="margin-top:8px" onclick="showHistory()">Match History</button>
+  </div>
+</div>
+
+<!-- ===== SIGN-IN MODAL ===== -->
+<div id="authOv" class="ov">
+  <div class="ab" style="max-width:340px;text-align:left">
+    <h2 style="text-align:center">☁️ Sync across devices</h2>
+    <p style="color:#aaa;font-size:13px;line-height:1.5;margin:12px 0">Sign in with your email to save your teams and match history to the cloud and access them on any device. We'll send you a magic link — no password needed.</p>
+    <input id="authEmail" type="email" placeholder="your@email.com" autocomplete="email" inputmode="email" class="input" style="margin-bottom:12px">
+    <div id="authMsg" style="font-size:12px;color:#aaa;min-height:16px;margin-bottom:8px"></div>
+    <button class="btn btn-g" onclick="sendMagicLink()">Send magic link</button>
+    <button class="btn btn-o" style="margin-top:8px" onclick="document.getElementById('authOv').classList.remove('show')">Cancel</button>
   </div>
 </div>
 
@@ -471,10 +485,153 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
 <script>
 // ===== STORAGE =====
-function loadTeams(){
+// ===== CLOUD SYNC (Supabase) =====
+const SUPABASE_URL='https://dnjwcfuegvlobhfwkfjo.supabase.co';
+const SUPABASE_KEY='sb_publishable_nby4TdV4jV9fi6fyrDG_tA_DIxt-Hyj';
+const sb=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}}):null;
+let cloudUser=null;
+let cloudSyncing=false;
+function renderAuthChip(){
+  const c=document.getElementById('authChip');if(!c)return;
+  if(cloudUser){
+    const email=cloudUser.email||'signed in';
+    const short=email.length>20?email.slice(0,18)+'…':email;
+    c.innerHTML=`<button onclick="signOutCloud()" style="background:rgba(0,212,170,.12);color:#00d4aa;border:1px solid #00d4aa;border-radius:14px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">☁ ${short}</button>`;
+  }else{
+    c.innerHTML=`<button onclick="document.getElementById('authOv').classList.add('show')" style="background:none;color:#888;border:1px solid #444;border-radius:14px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">Sign in ☁</button>`;
+  }
+}
+async function sendMagicLink(){
+  const email=(document.getElementById('authEmail').value||'').trim();
+  const msg=document.getElementById('authMsg');
+  if(!email||!email.includes('@')){msg.textContent='Enter a valid email.';msg.style.color='#e94560';return;}
+  if(!sb){msg.textContent='Cloud unavailable.';msg.style.color='#e94560';return;}
+  msg.textContent='Sending…';msg.style.color='#aaa';
+  const{error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+  if(error){msg.textContent='Error: '+error.message;msg.style.color='#e94560';}
+  else{msg.textContent='Check your inbox for the link.';msg.style.color='#00d4aa';}
+}
+async function signOutCloud(){
+  if(!sb)return;
+  if(!confirm('Sign out? Your teams stay on this device.'))return;
+  await sb.auth.signOut();
+}
+async function pullCloudTeams(){
+  if(!sb||!cloudUser)return null;
+  const{data,error}=await sb.from('teams').select('*');
+  if(error){console.warn('pullCloudTeams',error);return null;}
+  return data;
+}
+async function pullCloudMatches(){
+  if(!sb||!cloudUser)return null;
+  const{data,error}=await sb.from('matches').select('*').order('date',{ascending:false});
+  if(error){console.warn('pullCloudMatches',error);return null;}
+  return data;
+}
+async function pushCloudTeam(team){
+  if(!sb||!cloudUser)return;
+  const row={
+    owner:cloudUser.id,
+    name:team.name,
+    format:team.format||null,
+    players:team.players||[],
+    positions:team.positions||{}
+  };
+  if(team.cloud_id){
+    const{error}=await sb.from('teams').update(row).eq('id',team.cloud_id);
+    if(error)console.warn('pushCloudTeam update',error);
+  }else{
+    const{data,error}=await sb.from('teams').insert(row).select().single();
+    if(error){console.warn('pushCloudTeam insert',error);return;}
+    team.cloud_id=data.id;
+    // Persist the cloud_id back to localStorage
+    const all=loadTeamsRaw();
+    const idx=all.findIndex(t=>t.id===team.id);
+    if(idx>=0){all[idx].cloud_id=data.id;saveTeamsRaw(all);}
+  }
+}
+async function deleteCloudTeam(cloudId){
+  if(!sb||!cloudUser||!cloudId)return;
+  const{error}=await sb.from('teams').delete().eq('id',cloudId);
+  if(error)console.warn('deleteCloudTeam',error);
+}
+async function pushCloudMatch(match,teamCloudId){
+  if(!sb||!cloudUser)return;
+  const row={
+    owner:cloudUser.id,
+    team_id:teamCloudId||null,
+    date:match.date||new Date().toISOString(),
+    team_name:match.team||null,
+    opponent:match.opponent||null,
+    location:match.location||null,
+    format:match.format||null,
+    formation:match.formation||null,
+    score_us:match.scoreUs||0,
+    score_them:match.scoreThem||0,
+    playing_time:match.playingTime||[],
+    log:match.log||[]
+  };
+  const{error}=await sb.from('matches').insert(row);
+  if(error)console.warn('pushCloudMatch',error);
+}
+async function doInitialSync(){
+  if(cloudSyncing||!cloudUser)return;
+  cloudSyncing=true;
+  try{
+    // Pull cloud teams
+    const cloudTeams=await pullCloudTeams();
+    if(cloudTeams===null){cloudSyncing=false;return;}
+    let local=loadTeamsRaw();
+    // Local teams that aren't yet on cloud → push them up
+    for(const t of local){
+      if(!t.cloud_id){
+        await pushCloudTeam(t);
+      }
+    }
+    // Re-pull after pushes so we have a single source-of-truth view
+    const fresh=await pullCloudTeams();
+    if(fresh){
+      // Reconcile: for each cloud team, ensure a local entry with matching cloud_id exists
+      const localByCloudId=new Map(loadTeamsRaw().filter(t=>t.cloud_id).map(t=>[t.cloud_id,t]));
+      const merged=[];
+      fresh.forEach(ct=>{
+        const existing=localByCloudId.get(ct.id);
+        if(existing){
+          merged.push({...existing,name:ct.name,format:ct.format,players:ct.players,positions:ct.positions,cloud_id:ct.id});
+        }else{
+          merged.push({id:Date.now()+Math.floor(Math.random()*10000),cloud_id:ct.id,name:ct.name,format:ct.format,players:ct.players,positions:ct.positions});
+        }
+      });
+      saveTeamsRaw(merged);
+    }
+    renderHome();
+  }catch(e){console.warn('doInitialSync error',e);}
+  cloudSyncing=false;
+}
+// Hook auth state
+function initCloudAuth(){
+  if(!sb)return;
+  sb.auth.getSession().then(({data})=>{
+    cloudUser=data.session?.user||null;
+    renderAuthChip();
+    if(cloudUser)doInitialSync();
+  });
+  sb.auth.onAuthStateChange((event,session)=>{
+    cloudUser=session?.user||null;
+    renderAuthChip();
+    if(event==='SIGNED_IN'){
+      document.getElementById('authOv').classList.remove('show');
+      doInitialSync();
+    }
+  });
+}
+
+function loadTeamsRaw(){
   try{ const d=localStorage.getItem('subTimerTeams'); return d?JSON.parse(d):[]; }catch(e){return[];}
 }
-function saveTeams(t){ localStorage.setItem('subTimerTeams',JSON.stringify(t)); }
+function saveTeamsRaw(t){ localStorage.setItem('subTimerTeams',JSON.stringify(t)); }
+function loadTeams(){return loadTeamsRaw();}
+function saveTeams(t){ saveTeamsRaw(t); }
 
 // ===== ACTIVE GAME PERSISTENCE (survives refresh / app switch) =====
 function saveActiveGame(){
@@ -651,6 +808,7 @@ function discardActiveGame(){
 }
 function renderHome(){
   teams=loadTeams();
+  renderAuthChip();
   const c=document.getElementById('teamList');
   c.innerHTML='';
   // Resume banner
@@ -787,6 +945,7 @@ function saveAndBack(){
     if(idx>=0) teams[idx]=editingTeam;
     else teams.push(editingTeam);
     saveTeams(teams);
+    if(cloudUser) pushCloudTeam(editingTeam);
     editingTeam=null;
   }
   renderHome();
@@ -796,8 +955,10 @@ function saveAndBack(){
 function deleteTeam(){
   if(!editingTeam)return;
   if(!confirm('Delete '+editingTeam.name+'?'))return;
+  const cloudIdToDelete=editingTeam.cloud_id;
   teams=teams.filter(t=>t.id!==editingTeam.id);
   saveTeams(teams);
+  if(cloudUser&&cloudIdToDelete) deleteCloudTeam(cloudIdToDelete);
   editingTeam=null;
   renderHome();
   showScr('home');
@@ -1745,6 +1906,7 @@ function saveMatch(){
   matches.unshift(match);
   saveMatches(matches);
   clearActiveGame();
+  if(cloudUser)pushCloudMatch(match,currentTeam?currentTeam.cloud_id:null);
   // Visual feedback
   const btn=document.querySelector('#s5 .btn-g');
   if(btn){btn.textContent='Saved ✓';btn.disabled=true;btn.style.opacity='.5';}
@@ -1991,6 +2153,7 @@ function renderPitch(){ renderRoster(); }
 
 // Init
 renderHome();
+initCloudAuth();
 </script>
 </body>
 </html>
