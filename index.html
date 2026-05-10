@@ -188,6 +188,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .pos-mini-mid{background:#1a1a3e;color:#7b8cff}
 .pos-mini-wng{background:#1a2a1a;color:#8dd68d}
 .pos-mini-fwd{background:#2a1f0a;color:#f0a500}
+/* Netball position tags — GS attacking, C central, GK defending; mids/wings between */
+.pos-tag-gs{background:#2a1f0a;color:#f0a500;border-color:#f0a500}
+.pos-tag-ga{background:#2a1a14;color:#ff8c5a;border-color:#ff8c5a}
+.pos-tag-wa{background:#1a2a1a;color:#8dd68d;border-color:#8dd68d}
+.pos-tag-c{background:#3a2a14;color:#ffc14d;border-color:#ffc14d}
+.pos-tag-wd{background:#1a2a2a;color:#5bc0de;border-color:#5bc0de}
+.pos-tag-gd{background:#1a1a3e;color:#7b8cff;border-color:#7b8cff}
+.pos-mini-gs{background:#2a1f0a;color:#f0a500}
+.pos-mini-ga{background:#2a1a14;color:#ff8c5a}
+.pos-mini-wa{background:#1a2a1a;color:#8dd68d}
+.pos-mini-c{background:#3a2a14;color:#ffc14d}
+.pos-mini-wd{background:#1a2a2a;color:#5bc0de}
+.pos-mini-gd{background:#1a1a3e;color:#7b8cff}
 /* AI loading spinner + shimmer */
 @keyframes ai-spin{to{transform:rotate(360deg)}}
 @keyframes ai-shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
@@ -311,15 +324,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
       </span>
     </button>
     <div id="rosterImportStatus" style="display:none;margin-bottom:10px;padding:8px 10px;background:rgba(91,192,222,.08);border:1px solid rgba(91,192,222,.35);border-radius:8px;font-size:12px;color:#5bc0de;text-align:center"></div>
-    <div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.5;color:#ccc">
-      <div style="font-weight:700;color:#00d4aa;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">⚡ Set position tags</div>
-      Tap <span style="background:rgba(233,69,96,.15);color:#e94560;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">GK</span>
-      <span style="background:rgba(0,212,170,.15);color:#00d4aa;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">DEF</span>
-      <span style="background:rgba(91,192,222,.15);color:#5bc0de;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">MID</span>
-      <span style="background:rgba(240,165,0,.15);color:#f0a500;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">WNG</span>
-      <span style="background:rgba(255,107,107,.15);color:#ff6b6b;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">FWD</span>
-      under each name. The app uses these to swap players into positions they actually play. Multiple tags = versatile.
-    </div>
+    <div id="posTagsHint" style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.5;color:#ccc"></div>
     <div id="playerEditList"></div>
     <button class="btn btn-o btn-s" onclick="addPlayerField()" style="margin-top:8px;width:100%">+ Add Player</button>
     <button class="btn btn-g" onclick="saveAndBack()" style="margin-top:16px">Save Team</button>
@@ -723,7 +728,45 @@ function resumeActiveGame(){
   return true;
 }
 
-const POS_TYPES=['GK','DEF','MID','WNG','FWD'];
+// ===== SPORTS (multi-sport core) =====
+const SPORTS={
+  soccer:{
+    key:'soccer',label:'Soccer',icon:'⚽',available:true,
+    positions:['GK','DEF','MID','WNG','FWD'],
+    periodCount:2,             // halves
+    periodShort:half=>`${half===1?'1ST':'2ND'} HALF`,
+    breakLabels:{1:'⏸ HALFTIME'},
+    formats:['4v4','5v5','7v7','9v9','11v11']
+  },
+  netball:{
+    key:'netball',label:'Netball',icon:'🏐',available:true,
+    positions:['GS','GA','WA','C','WD','GD','GK'],
+    periodCount:4,             // quarters
+    periodShort:q=>`Q${q}`,
+    breakLabels:{1:'⏸ QUARTER TIME',2:'⏸ HALF TIME',3:'⏸ THREE-QUARTER TIME'},
+    formats:['nb-set','nb-go','nb-junior','nb-open']
+  }
+};
+function getSport(team){return SPORTS[(team&&team.sport)||'soccer']||SPORTS.soccer;}
+function getSportFromFormatKey(fmtKey){return SPORTS[(FORMATS[fmtKey]&&FORMATS[fmtKey].sport)||'soccer']||SPORTS.soccer;}
+function getPosTypes(team){return getSport(team).positions;}
+// Match-log render context — set before rendering a log so labels are sport-aware
+let _logCtxSport=SPORTS.soccer;
+function _logPeriodLabel(half){
+  if(_logCtxSport.key==='netball')return `Q${half||1}`;
+  return (half||1)===1?'1H':'2H';
+}
+function _logBreakLabel(e){
+  const p=e.period||e.half||1;
+  if(_logCtxSport.key==='netball')return p===1?'Q1':p===2?'HT':p===3?'Q3':'BR';
+  return 'HT';
+}
+function _logBreakName(e){
+  const p=e.period||e.half||1;
+  if(_logCtxSport.key==='netball')return p===1?'Quarter Time':p===2?'Halftime':p===3?'Three-Quarter Time':'Break';
+  return 'Halftime';
+}
+const POS_TYPES=SPORTS.soccer.positions; // legacy alias for soccer-only callsites
 function getPlayerPos(team,name){ return (team.positions&&team.positions[name])||[]; }
 function setPlayerPos(team,name,pos){
   if(!team.positions)team.positions={};
@@ -773,15 +816,25 @@ const FORMATIONS = {
     '4-3-3':   [{label:'LB',x:12,y:75},{label:'LCB',x:35,y:78},{label:'RCB',x:65,y:78},{label:'RB',x:88,y:75},{label:'LCM',x:30,y:45},{label:'CM',x:50,y:48},{label:'RCM',x:70,y:45},{label:'LW',x:15,y:22},{label:'CF',x:50,y:20},{label:'RW',x:85,y:22}],
     '3-5-2':   [{label:'LCB',x:22,y:78},{label:'CB',x:50,y:80},{label:'RCB',x:78,y:78},{label:'LWB',x:10,y:50},{label:'LCM',x:35,y:45},{label:'CM',x:50,y:48},{label:'RCM',x:65,y:45},{label:'RWB',x:90,y:50},{label:'LF',x:35,y:22},{label:'RF',x:65,y:22}],
     '4-5-1':   [{label:'LB',x:12,y:75},{label:'LCB',x:35,y:78},{label:'RCB',x:65,y:78},{label:'RB',x:88,y:75},{label:'LM',x:10,y:48},{label:'LCM',x:33,y:45},{label:'CM',x:50,y:48},{label:'RCM',x:67,y:45},{label:'RM',x:90,y:48},{label:'FW',x:50,y:20}],
-  }
+  },
+  // ===== NETBALL formations (all 7-a-side; positions on a vertical court diagram) =====
+  'nb-set':    { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
+  'nb-go':     { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
+  'nb-junior': { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
+  'nb-open':   { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] }
 };
 
 const FORMATS = {
-  '4v4':  { label:'4v4',  age:'U6',    onField:4,  hasGk:false, defaultHalf:10, defaultSub:5,  defaultSc:1, defaultFormation:'2-2' },
-  '5v5':  { label:'5v5',  age:'U7',    onField:5,  hasGk:false, defaultHalf:15, defaultSub:5,  defaultSc:1, defaultFormation:'2-2-1' },
-  '7v7':  { label:'7v7',  age:'U8-9',  onField:7,  hasGk:true,  defaultHalf:20, defaultSub:5,  defaultSc:2, defaultFormation:'2-3-1' },
-  '9v9':  { label:'9v9',  age:'U10-11',onField:9,  hasGk:true,  defaultHalf:25, defaultSub:8,  defaultSc:2, defaultFormation:'3-3-2' },
-  '11v11':{ label:'11v11',age:'U12+',  onField:11, hasGk:true,  defaultHalf:30, defaultSub:10, defaultSc:2, defaultFormation:'4-4-2' },
+  '4v4':  { sport:'soccer', label:'4v4',  age:'U6',    onField:4,  hasGk:false, defaultHalf:10, defaultSub:5,  defaultSc:1, defaultFormation:'2-2' },
+  '5v5':  { sport:'soccer', label:'5v5',  age:'U7',    onField:5,  hasGk:false, defaultHalf:15, defaultSub:5,  defaultSc:1, defaultFormation:'2-2-1' },
+  '7v7':  { sport:'soccer', label:'7v7',  age:'U8-9',  onField:7,  hasGk:true,  defaultHalf:20, defaultSub:5,  defaultSc:2, defaultFormation:'2-3-1' },
+  '9v9':  { sport:'soccer', label:'9v9',  age:'U10-11',onField:9,  hasGk:true,  defaultHalf:25, defaultSub:8,  defaultSc:2, defaultFormation:'3-3-2' },
+  '11v11':{ sport:'soccer', label:'11v11',age:'U12+',  onField:11, hasGk:true,  defaultHalf:30, defaultSub:10, defaultSc:2, defaultFormation:'4-4-2' },
+  // Netball — periods are quarters, defaultHalf is the per-quarter length in minutes
+  'nb-set':    { sport:'netball', label:'NetSetGo Set', age:'7-8',  onField:7, hasGk:false, defaultHalf:8,  defaultSub:4, defaultSc:1, defaultFormation:'standard' },
+  'nb-go':     { sport:'netball', label:'NetSetGo GO',  age:'9-10', onField:7, hasGk:false, defaultHalf:10, defaultSub:5, defaultSc:1, defaultFormation:'standard' },
+  'nb-junior': { sport:'netball', label:'Junior',       age:'11-13',onField:7, hasGk:false, defaultHalf:12, defaultSub:6, defaultSc:1, defaultFormation:'standard' },
+  'nb-open':   { sport:'netball', label:'Open',         age:'14+',  onField:7, hasGk:false, defaultHalf:15, defaultSub:7, defaultSc:1, defaultFormation:'standard' },
 };
 
 // Helper to get current formation positions (including GK if applicable)
@@ -875,12 +928,13 @@ function renderHome(){
   if(rb){
     if(active){
       const t=teams.find(x=>x.id===active.teamId);
-      const half=active.G&&active.G.half===2?'2nd half':'1st half';
+      const _spt=getSport(t);
+      const periodLbl=active.G?_spt.periodShort(active.G.half||1):'';
       const mins=active.G?Math.floor((active.G.elapsedMs||0)/60000):0;
       const secs=active.G?Math.floor(((active.G.elapsedMs||0)%60000)/1000):0;
       const score=active.G?`${active.G.scoreUs}-${active.G.scoreThem}`:'';
       const teamName=t?t.name:'(team deleted)';
-      document.getElementById('resumeBannerInfo').textContent=`${teamName} · ${half} · ${mins}:${String(secs).padStart(2,'0')} · ${score}`;
+      document.getElementById('resumeBannerInfo').textContent=`${teamName} · ${periodLbl} · ${mins}:${String(secs).padStart(2,'0')} · ${score}`;
       rb.style.display='';
     } else {
       rb.style.display='none';
@@ -934,9 +988,10 @@ function renderHome(){
     const d=document.createElement('div');
     d.className='team-card';
     const fmtLabel=t.format&&FORMATS[t.format]?FORMATS[t.format].label:null;
-    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-      <div><h3>${t.name}</h3><p>${t.players.length} players${fmtLabel?' · '+fmtLabel:''}</p></div>
-      <button class="back-btn" onclick="event.stopPropagation();editTeamScreen('${t.id}')" style="font-size:13px">Edit ✏️</button>
+    const _spt=getSport(t);
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1"><span style="font-size:24px;flex-shrink:0">${_spt.icon}</span><div style="min-width:0;flex:1"><h3 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</h3><p>${t.players.length} players${fmtLabel?' · '+fmtLabel:''}</p></div></div>
+      <button class="back-btn" onclick="event.stopPropagation();editTeamScreen('${t.id}')" style="font-size:13px;flex-shrink:0">Edit ✏️</button>
     </div>`;
     d.onclick=()=>selectTeam(t.id);
     c.appendChild(d);
@@ -947,21 +1002,25 @@ function selectTeam(id){
   currentTeam=teams.find(t=>t.id==id);
   sel.clear();
   currentTeam.players.forEach((_,i)=>sel.add(i));
-  if(currentTeam.format&&FORMATS[currentTeam.format])curFmt=currentTeam.format;
+  if(currentTeam.format&&FORMATS[currentTeam.format]){
+    curFmt=currentTeam.format;
+    const f=FORMATS[curFmt];
+    // Apply the format's defaults so netball teams get quarter lengths, soccer teams get half lengths, etc.
+    curFormation=f.defaultFormation;
+    cfg.hm=f.defaultHalf;
+    cfg.sf=f.defaultSub;
+    cfg.sc=f.defaultSc;
+  }
   document.getElementById('s1Title').textContent=currentTeam.name.toUpperCase();
   renderS1();
   showScr('s1');
 }
 
 // ===== TEAM EDITOR =====
-const SPORTS=[
-  {key:'soccer',label:'Soccer',icon:'⚽',available:true},
-  {key:'netball',label:'Netball',icon:'🏐',available:false,note:'Coming soon'}
-];
 function newTeam(){
   const g=document.getElementById('sportGrid');
   g.innerHTML='';
-  SPORTS.forEach(s=>{
+  Object.values(SPORTS).forEach(s=>{
     const c=document.createElement('div');
     c.className='chip';
     c.style.cssText='padding:20px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;'+(s.available?'':'opacity:0.5;cursor:not-allowed');
@@ -974,15 +1033,17 @@ function newTeam(){
   showScr('sportPicker');
 }
 function pickSport(sportKey){
-  // Currently only soccer goes to format picker
+  const sport=SPORTS[sportKey];
   const g=document.getElementById('gradeGrid');
   g.innerHTML='';
-  Object.keys(FORMATS).forEach(k=>{
+  sport.formats.forEach(k=>{
     const f=FORMATS[k];
+    if(!f)return;
     const c=document.createElement('div');
     c.className='chip';
-    c.style.cssText='padding:18px 10px';
-    c.innerHTML=`<div style="font-size:18px;font-weight:800;color:#e94560">${f.label}</div>`;
+    c.style.cssText='padding:18px 10px;display:flex;flex-direction:column;gap:4px';
+    c.innerHTML=`<div style="font-size:16px;font-weight:800;color:#e94560">${f.label}</div>
+      <div style="font-size:11px;color:#888;font-weight:600">${f.age}${sport.key==='netball'?' · '+f.defaultHalf+'min Q':''}</div>`;
     c.onclick=()=>pickFormat(k,sportKey);
     g.appendChild(c);
   });
@@ -992,7 +1053,9 @@ function pickFormat(fmtKey,sportKey){
   editingTeam={id:Date.now(),name:'',sport:sportKey||'soccer',format:fmtKey,players:['']};
   document.getElementById('editTitle').textContent='New Team';
   document.getElementById('delTeamBtn').style.display='none';
-  document.getElementById('teamNameInput').placeholder=`e.g. Dragonflies ${FORMATS[fmtKey].age}`;
+  const sport=SPORTS[sportKey]||SPORTS.soccer;
+  const placeholder=sport.key==='netball'?`e.g. Hornets ${FORMATS[fmtKey].age}`:`e.g. Dragonflies ${FORMATS[fmtKey].age}`;
+  document.getElementById('teamNameInput').placeholder=placeholder;
   renderEditTeam();
   showScr('editTeam');
 }
@@ -1010,6 +1073,15 @@ function renderEditTeam(){
   const c=document.getElementById('playerEditList');
   c.innerHTML='';
   if(!editingTeam.positions)editingTeam.positions={};
+  // Update sport-aware position-tags hint
+  const hint=document.getElementById('posTagsHint');
+  if(hint){
+    const types=getPosTypes(editingTeam);
+    const chips=types.map(pt=>`<span class="pos-tag pos-tag-${pt.toLowerCase()}" style="font-size:11px;padding:1px 6px;cursor:default">${pt}</span>`).join(' ');
+    hint.innerHTML=`<div style="font-weight:700;color:#00d4aa;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">⚡ Set position tags</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:6px">Tap ${chips}</div>
+      under each name. The app uses these to swap players into positions they actually play. Multiple tags = versatile.`;
+  }
   editingTeam.players.forEach((p,i)=>{
     const wrap=document.createElement('div');
     wrap.style.cssText='margin-bottom:10px';
@@ -1029,7 +1101,7 @@ function renderEditTeam(){
     const tags=document.createElement('div');
     tags.className='pos-tags';
     tags.style.cssText='display:flex;gap:4px;flex-wrap:wrap';
-    POS_TYPES.forEach(pt=>{
+    getPosTypes(editingTeam).forEach(pt=>{
       const tag=document.createElement('span');
       const active=cur.includes(pt);
       tag.className='pos-tag pos-tag-'+pt.toLowerCase()+(active?'':' off');
@@ -1279,10 +1351,12 @@ function renderFmtPicker(){
     g.appendChild(c);
   });
   const f=FORMATS[curFmt];
+  const _spt=getSport(currentTeam);
+  const periodWord=_spt.key==='netball'?'min quarters':_spt.key==='soccer'?'min halves':'min periods';
   document.getElementById('fmtInfo').innerHTML=
     `<strong style="color:#00d4aa">${f.label}</strong> · ${f.age} · ${f.onField} on field` +
-    (f.hasGk?' (incl. GK)':' (no GK)') +
-    ` · ${f.defaultHalf}min halves`;
+    (f.hasGk?' (incl. GK)':'') +
+    ` · ${f.defaultHalf}${periodWord}`;
 }
 
 function selectFormat(k){
@@ -1711,7 +1785,8 @@ function subTs(){const r=[];for(let t=cfg.sf;t<cfg.hm;t+=cfg.sf)r.push(t*60);ret
 function nxtST(){for(const t of subTs())if(!G.sd.includes(t))return t;return null;}
 
 function renderG(){
-  document.getElementById('hLbl').textContent=G.half===1?'1ST HALF':'2ND HALF';
+  const _sport=getSport(currentTeam);
+  document.getElementById('hLbl').textContent=_sport.periodShort(G.half);
   const curMs=G.running&&G.lastTs?G.elapsedMs+(performance.now()-G.lastTs):G.elapsedMs;
   const ce=document.getElementById('clk');ce.textContent=fmtMs(curMs);
   ce.className='tmr-c';
@@ -2003,23 +2078,31 @@ function confInjury(outForGame){
 function renderHtMsg(){
   const m=document.getElementById('htM');m.innerHTML='';
   const fmt=FORMATS[curFmt];
-  if(fmt.hasGk && G.gk!==null && G.gk!==gk2){
+  const sport=getSport(currentTeam);
+  if(sport.key==='soccer'&&fmt.hasGk && G.gk!==null && G.gk!==gk2){
     const d=document.createElement('div');d.className='sm';
     d.innerHTML=`<span style="color:#e94560">🧤 ${fn(avail[G.gk])}</span><span style="color:#666">→</span><span style="color:#e94560">🧤 ${fn(avail[gk2])}</span>`;
     m.appendChild(d);
-  }else if(fmt.hasGk){
+  }else if(sport.key==='soccer'&&fmt.hasGk){
     m.innerHTML='<div style="color:#aaa;padding:8px">Same goalkeeper continues</div>';
+  }else if(sport.key==='netball'){
+    const next=G.half+1;
+    m.innerHTML=`<div style="color:#aaa;padding:8px">Tap Start Q${next} when ready. All 7 positions can be reshuffled at the break.</div>`;
   }else{
-    m.innerHTML='<div style="color:#aaa;padding:8px">Halftime — swap ends</div>';
+    m.innerHTML='<div style="color:#aaa;padding:8px">Halftime — break and switch ends</div>';
   }
 }
 function updateHtGk(idx){gk2=idx;renderHtMsg();}
 function advH(){
   if(G.running){G.elapsedMs+=performance.now()-G.lastTs;G.lastTs=null;cancelAnimationFrame(G.raf);G.raf=null;G.running=false;}
-  if(G.half===1){
+  const sport=getSport(currentTeam);
+  // G.half holds the period number (1..N). After the final period, show summary.
+  if(G.half<sport.periodCount){
     const fmt=FORMATS[curFmt];
     const picker=document.getElementById('htGkPicker');
-    if(fmt.hasGk){
+    // GK swap picker only shows for soccer halftime (between H1 and H2 specifically)
+    const isSoccerHalftime=sport.key==='soccer'&&fmt.hasGk;
+    if(isSoccerHalftime){
       picker.style.display='';
       const sel=document.getElementById('htGk2Sel');
       sel.innerHTML='';
@@ -2032,15 +2115,26 @@ function advH(){
     }else{
       picker.style.display='none';
     }
+    // Sport-aware break heading
+    const headingEl=document.querySelector('#htOv .ab h2');
+    if(headingEl)headingEl.textContent=sport.breakLabels[G.half]||'⏸ BREAK';
+    // Sport-aware sub-line + button label
+    const startBtn=document.querySelector('#htOv .ab button.btn-g');
+    if(startBtn){
+      const nextPeriod=G.half+1;
+      startBtn.textContent=sport.key==='netball'?`Start Q${nextPeriod} ▶`:(nextPeriod===2?'Start 2nd Half ▶':`Start Period ${nextPeriod} ▶`);
+    }
     renderHtMsg();
     document.getElementById('htOv').classList.add('show');
   }else showSum();
 }
 function confHT(){
   document.getElementById('htOv').classList.remove('show');
-  G.log.push({type:'halftime',time:G.secs,scoreUs:G.scoreUs,scoreThem:G.scoreThem});
+  const sport=getSport(currentTeam);
+  G.log.push({type:'period_end',period:G.half,time:G.secs,scoreUs:G.scoreUs,scoreThem:G.scoreThem});
   const fmt=FORMATS[curFmt];
-  if(fmt.hasGk && G.gk!==null && G.gk!==gk2){
+  // Soccer halftime keeper swap (only between H1 and H2)
+  if(sport.key==='soccer'&&G.half===1&&fmt.hasGk && G.gk!==null && G.gk!==gk2){
     const oldGk=G.gk;
     G.log.push({type:'gk',half:2,time:0,off:avail[oldGk],on:avail[gk2]});
     if(G.bench.includes(gk2)){
@@ -2052,7 +2146,8 @@ function confHT(){
     }
     G.gk=gk2;
   }
-  G.half=2;G.secs=0;G.elapsedMs=0;G.lastTs=null;G.sd=[];G.pairIdx=0;
+  G.half++;
+  G.secs=0;G.elapsedMs=0;G.lastTs=null;G.sd=[];G.pairIdx=0;
   saveActiveGame();
   renderG();
 }
@@ -2082,7 +2177,8 @@ function showSum(){
   hdr.textContent='Playing Time';
   c.appendChild(hdr);
   const sorted=avail.map((n,i)=>({n,t:G.pt[n]||0})).sort((a,b)=>b.t-a.t);
-  const mx=cfg.hm*2*60;
+  _logCtxSport=getSport(currentTeam);
+  const mx=cfg.hm*_logCtxSport.periodCount*60;
   sorted.forEach(({n,t})=>{
     const pct=Math.min(100,(t/mx)*100);
     const r=document.createElement('div');r.className='sr';
@@ -2105,7 +2201,7 @@ function showSum(){
     G.log.forEach(e=>{
       const row=document.createElement('div');
       row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #222;font-size:13px';
-      const timeStr=e.type==='halftime'?'HT':(e.half===1?'1H ':'2H ')+fmt(e.time);
+      const timeStr=(e.type==='halftime'||e.type==='period_end')?_logBreakLabel(e):_logPeriodLabel(e.half)+' '+fmt(e.time);
       let icon='',detail='';
       if(e.type==='sub'){
         icon='🔄';detail=`<span style="color:#f0a500">${fn(e.off)}</span> → <span style="color:#00d4aa">${fn(e.on)}</span>`;
@@ -2113,8 +2209,8 @@ function showSum(){
         icon='🧤';detail=`GK: <span style="color:#e94560">${fn(e.off)}</span> → <span style="color:#e94560">${fn(e.on)}</span>`;
       } else if(e.type==='goal'){
         icon='⚽';detail=e.who==='us'?`<span style="color:#00d4aa">${teamName} goal!</span>`:`<span style="color:#e94560">Opposition goal</span>`;
-      } else if(e.type==='halftime'){
-        icon='⏸';detail=`<span style="color:#888">Halftime — ${e.scoreUs}-${e.scoreThem}</span>`;
+      } else if(e.type==='halftime'||e.type==='period_end'){
+        icon='⏸';detail=`<span style="color:#888">${_logBreakName(e)} — ${e.scoreUs}-${e.scoreThem}</span>`;
       }
       row.innerHTML=`<span style="width:52px;color:#666;font-variant-numeric:tabular-nums;flex-shrink:0">${timeStr}</span><span>${icon}</span><span style="flex:1">${detail}</span>`;
       lc.appendChild(row);
@@ -2204,7 +2300,10 @@ function showMatchDetail(m){
   hdr.style.cssText='font-size:13px;color:#e94560;font-weight:700;margin-bottom:8px';
   hdr.textContent='Playing Time';c.appendChild(hdr);
   if(m.playingTime){
-    const mx=30*2*60;
+    _logCtxSport=getSportFromFormatKey(m.format);
+    const fmtDef=FORMATS[m.format];
+    const periodMin=fmtDef?fmtDef.defaultHalf:15;
+    const mx=periodMin*_logCtxSport.periodCount*60;
     m.playingTime.sort((a,b)=>b.secs-a.secs).forEach(({name,secs})=>{
       const pct=Math.min(100,(secs/mx)*100);
       const r=document.createElement('div');r.className='sr';
@@ -2225,12 +2324,12 @@ function showMatchDetail(m){
     m.log.forEach(e=>{
       const row=document.createElement('div');
       row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #222;font-size:13px';
-      const timeStr=e.type==='halftime'?'HT':(e.half===1?'1H ':'2H ')+fmt(e.time);
+      const timeStr=(e.type==='halftime'||e.type==='period_end')?_logBreakLabel(e):_logPeriodLabel(e.half)+' '+fmt(e.time);
       let icon='',detail='';
       if(e.type==='sub'){icon='🔄';detail=`<span style="color:#f0a500">${fn(e.off)}</span> → <span style="color:#00d4aa">${fn(e.on)}</span>`;}
       else if(e.type==='gk'){icon='🧤';detail=`GK: ${fn(e.off)} → ${fn(e.on)}`;}
       else if(e.type==='goal'){icon='⚽';detail=e.who==='us'?`${teamName} goal!`:'Opposition goal';}
-      else if(e.type==='halftime'){icon='⏸';detail=`Halftime — ${e.scoreUs}-${e.scoreThem}`;}
+      else if(e.type==='halftime'||e.type==='period_end'){icon='⏸';detail=`${_logBreakName(e)} — ${e.scoreUs}-${e.scoreThem}`;}
       row.innerHTML=`<span style="width:52px;color:#666;font-variant-numeric:tabular-nums;flex-shrink:0">${timeStr}</span><span>${icon}</span><span style="flex:1">${detail}</span>`;
       lc.appendChild(row);
     });
