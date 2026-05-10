@@ -398,6 +398,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div class="ab">
     <h2>⏸ HALFTIME</h2>
     <p style="color:#aaa;margin-bottom:12px;font-size:14px">GK change</p>
+    <div id="htGkPicker" style="margin-bottom:12px;display:none">
+      <label style="display:block;font-size:11px;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">2nd Half Keeper</label>
+      <select id="htGk2Sel" onchange="updateHtGk(parseInt(this.value))" style="width:100%;background:#0a1628;color:#eee;border:1.5px solid #e94560;border-radius:8px;padding:10px;font-size:14px;font-weight:600;font-family:inherit;outline:none"></select>
+    </div>
     <div id="htM"></div>
     <button class="btn btn-g" onclick="confHT()" style="margin-top:16px">Start 2nd Half ▶</button>
   </div>
@@ -1445,20 +1449,39 @@ function confInjury(outForGame){
   renderG();
 }
 
+function renderHtMsg(){
+  const m=document.getElementById('htM');m.innerHTML='';
+  const fmt=FORMATS[curFmt];
+  if(fmt.hasGk && G.gk!==null && G.gk!==gk2){
+    const d=document.createElement('div');d.className='sm';
+    d.innerHTML=`<span style="color:#e94560">🧤 ${fn(avail[G.gk])}</span><span style="color:#666">→</span><span style="color:#e94560">🧤 ${fn(avail[gk2])}</span>`;
+    m.appendChild(d);
+  }else if(fmt.hasGk){
+    m.innerHTML='<div style="color:#aaa;padding:8px">Same goalkeeper continues</div>';
+  }else{
+    m.innerHTML='<div style="color:#aaa;padding:8px">Halftime — swap ends</div>';
+  }
+}
+function updateHtGk(idx){gk2=idx;renderHtMsg();}
 function advH(){
   if(G.running){G.elapsedMs+=performance.now()-G.lastTs;G.lastTs=null;cancelAnimationFrame(G.raf);G.raf=null;G.running=false;}
   if(G.half===1){
-    const m=document.getElementById('htM');m.innerHTML='';
     const fmt=FORMATS[curFmt];
-    if(fmt.hasGk && G.gk!==null && G.gk!==gk2){
-      const d=document.createElement('div');d.className='sm';
-      d.innerHTML=`<span style="color:#e94560">🧤 ${fn(avail[G.gk])}</span><span style="color:#666">→</span><span style="color:#e94560">🧤 ${fn(avail[gk2])}</span>`;
-      m.appendChild(d);
-    }else if(fmt.hasGk){
-      m.innerHTML='<div style="color:#aaa;padding:8px">Same goalkeeper continues</div>';
+    const picker=document.getElementById('htGkPicker');
+    if(fmt.hasGk){
+      picker.style.display='';
+      const sel=document.getElementById('htGk2Sel');
+      sel.innerHTML='';
+      avail.forEach((n,i)=>{
+        const o=document.createElement('option');
+        o.value=i;o.textContent=fn(n);
+        if(gk2===i)o.selected=true;
+        sel.appendChild(o);
+      });
     }else{
-      m.innerHTML='<div style="color:#aaa;padding:8px">Halftime — swap ends</div>';
+      picker.style.display='none';
     }
+    renderHtMsg();
     document.getElementById('htOv').classList.add('show');
   }else showSum();
 }
@@ -1467,11 +1490,14 @@ function confHT(){
   G.log.push({type:'halftime',time:G.secs,scoreUs:G.scoreUs,scoreThem:G.scoreThem});
   const fmt=FORMATS[curFmt];
   if(fmt.hasGk && G.gk!==null && G.gk!==gk2){
-    G.log.push({type:'gk',half:2,time:0,off:avail[G.gk],on:avail[gk2]});
+    const oldGk=G.gk;
+    G.log.push({type:'gk',half:2,time:0,off:avail[oldGk],on:avail[gk2]});
     if(G.bench.includes(gk2)){
       G.bench=G.bench.filter(p=>p!==gk2);
-      G.on=G.on.filter(p=>p!==G.gk);
-      G.on.unshift(gk2);G.bench.push(G.gk);
+      G.on=G.on.filter(p=>p!==oldGk);
+      G.on.unshift(gk2);G.bench.push(oldGk);
+    }else{
+      G.on=[gk2,...G.on.filter(p=>p!==gk2)];
     }
     G.gk=gk2;
   }
