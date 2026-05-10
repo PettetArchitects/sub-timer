@@ -217,8 +217,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     </div>
   </div>
   <div class="sec">
-    <h2>What grade do you play?</h2>
-    <p style="font-size:13px;color:#888;margin-bottom:12px">We'll set up the right format for you.</p>
+    <h2>What format do you play?</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:12px">Pick the on-field size for your team.</p>
     <div id="gradeGrid" class="chip-grid"></div>
   </div>
 </div>
@@ -610,9 +610,9 @@ function renderHome(){
   teams.forEach(t=>{
     const d=document.createElement('div');
     d.className='team-card';
-    const meta=[t.grade,t.format?FORMATS[t.format]?.label:null].filter(Boolean).join(' · ');
+    const fmtLabel=t.format&&FORMATS[t.format]?FORMATS[t.format].label:null;
     d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-      <div><h3>${t.name}</h3><p>${t.players.length} players${meta?' · '+meta:''}</p></div>
+      <div><h3>${t.name}</h3><p>${t.players.length} players${fmtLabel?' · '+fmtLabel:''}</p></div>
       <button class="back-btn" onclick="event.stopPropagation();editTeamScreen('${t.id}')" style="font-size:13px">Edit ✏️</button>
     </div>`;
     d.onclick=()=>selectTeam(t.id);
@@ -631,32 +631,23 @@ function selectTeam(id){
 }
 
 // ===== TEAM EDITOR =====
-const GRADES=[
-  {label:'U6',fmt:'4v4'},
-  {label:'U7',fmt:'5v5'},
-  {label:'U8',fmt:'7v7'},
-  {label:'U9',fmt:'7v7'},
-  {label:'U10',fmt:'9v9'},
-  {label:'U11',fmt:'9v9'},
-  {label:'U12+',fmt:'11v11'}
-];
 function newTeam(){
   const g=document.getElementById('gradeGrid');
   g.innerHTML='';
-  GRADES.forEach(gr=>{
-    const f=FORMATS[gr.fmt];
+  Object.keys(FORMATS).forEach(k=>{
+    const f=FORMATS[k];
     const c=document.createElement('div');
     c.className='chip';
     c.style.cssText='padding:18px 10px;display:flex;flex-direction:column;gap:4px';
-    c.innerHTML=`<div style="font-size:18px;font-weight:800;color:#e94560">${gr.label}</div>
-      <div style="font-size:12px;color:#aaa;font-weight:600">${f.label}${f.hasGk?' · GK':''}</div>`;
-    c.onclick=()=>pickGrade(gr);
+    c.innerHTML=`<div style="font-size:18px;font-weight:800;color:#e94560">${f.label}</div>
+      <div style="font-size:12px;color:#aaa;font-weight:600">${f.age}${f.hasGk?' · GK':''}</div>`;
+    c.onclick=()=>pickFormat(k);
     g.appendChild(c);
   });
   showScr('gradePicker');
 }
-function pickGrade(gr){
-  editingTeam={id:Date.now(),name:'',grade:gr.label,format:gr.fmt,players:['']};
+function pickFormat(fmtKey){
+  editingTeam={id:Date.now(),name:'',format:fmtKey,players:['']};
   document.getElementById('editTitle').textContent='New Team';
   document.getElementById('delTeamBtn').style.display='none';
   renderEditTeam();
