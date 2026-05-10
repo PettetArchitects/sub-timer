@@ -232,7 +232,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div class="hdr">
     <div class="hdr-row">
       <button class="back-btn" onclick="showScr('home')">← Teams</button>
-      <h1 id="s1Title">DRAGONFLIES</h1>
+      <h1 id="s1Title">SQUAD</h1>
       <div style="width:60px"></div>
     </div>
   </div>
@@ -438,25 +438,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
 <script>
 // ===== STORAGE =====
-const DRAGONFLIES = [
-  'Ivy Burgmann','Dylan Maloney','Georgia Nightingale','Scout Gibson',
-  'Lara Hampton','Zara Brady','Tully Morris','Sofia Martin Serrano',
-  'Lily Lewis','Molly Pettet','Giselle Davey','Leah Manning','Elena Farri'
-];
-
 function loadTeams(){
   try{ const d=localStorage.getItem('subTimerTeams'); return d?JSON.parse(d):[]; }catch(e){return[];}
 }
 function saveTeams(t){ localStorage.setItem('subTimerTeams',JSON.stringify(t)); }
-
-function seedDefaults(){
-  let teams=loadTeams();
-  if(teams.length===0){
-    teams=[{id:Date.now(),name:'Dragonflies U8',players:[...DRAGONFLIES]}];
-    saveTeams(teams);
-  }
-  return teams;
-}
 
 const POS_TYPES=['GK','DEF','MID','WNG','FWD'];
 function getPlayerPos(team,name){ return (team.positions&&team.positions[name])||[]; }
@@ -528,7 +513,7 @@ function getPositions(){
 }
 
 // ===== STATE =====
-let teams=seedDefaults();
+let teams=loadTeams();
 let currentTeam=null;
 let editingTeam=null;
 let sel=new Set();
@@ -596,9 +581,16 @@ function showScr(id){
 // ===== HOME =====
 function renderHome(){
   teams=loadTeams();
-  if(teams.length===0) teams=seedDefaults();
   const c=document.getElementById('teamList');
   c.innerHTML='';
+  if(teams.length===0){
+    c.innerHTML=`<div style="text-align:center;padding:24px 12px;color:#888;font-size:14px;line-height:1.5">
+      <div style="font-size:36px;margin-bottom:8px">⚽</div>
+      <div style="font-weight:700;color:#eee;margin-bottom:6px">Welcome!</div>
+      <div>Tap <span style="color:#e94560;font-weight:700">+ New Team</span> to add your players<br>and get started.</div>
+    </div>`;
+    return;
+  }
   teams.forEach(t=>{
     const d=document.createElement('div');
     d.className='team-card';
