@@ -2752,6 +2752,26 @@ function manualSub(){
   trigSub();
   renderG();
 }
+// Bench reorder — let the coach promote/demote players in the sub queue.
+// Only meaningful for Equal-time (as a tiebreaker) and Manual (where queue
+// order = next-on order). Paired mode swaps whole groups so we hide the
+// controls there.
+function moveBenchUp(pIdx){
+  if(!G||!G.bench)return;
+  const i=G.bench.indexOf(pIdx);
+  if(i<=0)return;
+  [G.bench[i-1],G.bench[i]]=[G.bench[i],G.bench[i-1]];
+  saveActiveGame();
+  renderG();
+}
+function moveBenchDown(pIdx){
+  if(!G||!G.bench)return;
+  const i=G.bench.indexOf(pIdx);
+  if(i<0||i>=G.bench.length-1)return;
+  [G.bench[i+1],G.bench[i]]=[G.bench[i],G.bench[i+1]];
+  saveActiveGame();
+  renderG();
+}
 function injurySub(pIdx){
   if(!G||!G.bench.length)return;
   if(G.ps&&document.getElementById('subBanner').style.display!=='none')return;
@@ -3254,9 +3274,15 @@ function renderRoster(){
     bLbl.textContent=`BENCH · ${G.bench.length}`;
     rw.appendChild(bLbl);
 
-    G.bench.forEach(pIdx=>{
+    // Pair-rotation mode swaps pre-grouped pairs as units, so reordering an
+    // individual bench player has no effect. Hide reorder arrows in that mode
+    // to avoid implying a control that doesn't actually do anything.
+    const allowReorder=G.subStrategy!=='paired';
+    G.bench.forEach((pIdx,bIdx)=>{
       const mins=Math.floor(G.pt[avail[pIdx]]/60);
       const isNext=nextOn.has(pIdx);
+      const isFirst=bIdx===0;
+      const isLast=bIdx===G.bench.length-1;
       // Find who this player replaces and what position they'll take
       const replacesP=swapMap?swapMap[pIdx]:undefined;
       const takesPos=replacesP!==undefined?posForPlayer[replacesP]:null;
@@ -3268,6 +3294,10 @@ function renderRoster(){
       const posBg=isNext?'#0d3320':'#2a1f0a';
       const posCol=isNext?'#00d4aa':'#f0a500';
       const posLabel=isNext&&takesPos?takesPos:'SUB';
+      const arrowBtn=(dir,disabled)=>`<button onclick="event.stopPropagation();moveBench${dir==='up'?'Up':'Down'}(${pIdx})" ${disabled?'disabled':''} style="background:none;border:none;cursor:${disabled?'default':'pointer'};padding:2px 4px;color:${disabled?'#2a3550':'#666'};display:flex;align-items:center;justify-content:center;line-height:0" title="Move ${dir}">${ic(dir==='up'?'chevron-up':'chevron-down',14,disabled?'#2a3550':'#888')}</button>`;
+      const reorderHtml=allowReorder
+        ? `<div style="display:flex;flex-direction:column;gap:0;margin-left:6px;flex-shrink:0">${arrowBtn('up',isFirst)}${arrowBtn('down',isLast)}</div>`
+        : '';
       row.innerHTML=`
         <div style="width:28px;height:28px;border-radius:6px;background:${posBg};display:flex;align-items:center;justify-content:center;font-size:${posLabel.length>2?'8':'10'}px;font-weight:800;color:${posCol};flex-shrink:0;margin-right:8px">${posLabel}</div>
         <div style="flex:1;min-width:0">
@@ -3275,6 +3305,7 @@ function renderRoster(){
           ${isNext&&replacesP!==undefined?`<div style="font-size:11px;color:#f0a500;font-weight:600;margin-top:1px">for ${fn(avail[replacesP])} at ${takesPos}</div>`:''}
         </div>
         <div style="font-size:12px;font-weight:700;color:#555;font-variant-numeric:tabular-nums">${mins}′</div>
+        ${reorderHtml}
       `;
       rw.appendChild(row);
     });
