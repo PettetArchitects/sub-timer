@@ -751,6 +751,9 @@ async function pushCloudTeam(team){
     const row={
       owner:cloudUser.id,
       name:team.name,
+      // Stamp sport on the cloud row too — derived from format if missing
+      // so legacy teams get backfilled on their first post-migration push.
+      sport:team.sport||(FORMATS[team.format]&&FORMATS[team.format].sport)||'soccer',
       format:team.format||null,
       players:team.players||[],
       positions:team.positions||{}
@@ -827,28 +830,37 @@ async function doInitialSync(){
       if(freshTeams){
         const localByCloudId=new Map(loadTeamsRaw().filter(t=>t.cloud_id).map(t=>[t.cloud_id,t]));
         const merged=[];
-        const needsRePush=[]; // teams where local has richer positions than cloud
+        const needsRePush=[]; // teams where local is richer than cloud
         freshTeams.forEach(ct=>{
           const existing=localByCloudId.get(ct.id);
-          // Positions merge: prefer cloud when it has any, else keep local.
-          // This avoids the old bug where syncing an as-yet-untagged team
-          // overwrote freshly-added local position tags with the cloud's
-          // empty {}.
+          // === Merge rules (preserve richer side of nested fields) ===
+          // Positions: prefer cloud when non-empty, else keep local. Stops
+          // an empty cloud copy from wiping freshly-added local tags.
           const cloudHasPos=ct.positions&&Object.keys(ct.positions).length>0;
           const localHasPos=existing&&existing.positions&&Object.keys(existing.positions).length>0;
           const positions=cloudHasPos?ct.positions:(localHasPos?existing.positions:{});
+          // Players: same rule. If local has more players than cloud, the
+          // user probably added some offline before the push landed — keep
+          // them rather than clobbering with cloud's shorter list.
+          const cloudPlayers=Array.isArray(ct.players)?ct.players:[];
+          const localPlayers=existing&&Array.isArray(existing.players)?existing.players:[];
+          const players=localPlayers.length>cloudPlayers.length?localPlayers:cloudPlayers;
+          // Primitive fields (name / format): cloud wins. Edits go up
+          // immediately via pushCloudTeam, so cloud is usually fresh. The
+          // edge case where local renamed offline + push failed + sync ran
+          // would lose the rename, but that needs per-field timestamps to
+          // fix robustly. Logged as a known limitation.
           if(existing){
-            merged.push({...existing,name:ct.name,format:ct.format,players:ct.players,positions,cloud_id:ct.id});
-            // If we kept local positions because cloud was empty, push them
-            // back up so the cloud catches up — otherwise the next device
-            // to sync would see empty cloud and stay empty.
-            if(localHasPos&&!cloudHasPos)needsRePush.push(merged[merged.length-1]);
+            merged.push({...existing,name:ct.name,format:ct.format,players,positions,cloud_id:ct.id});
+            if((localHasPos&&!cloudHasPos)||localPlayers.length>cloudPlayers.length){
+              needsRePush.push(merged[merged.length-1]);
+            }
           }else{
-            merged.push({id:Date.now()+Math.floor(Math.random()*10000),cloud_id:ct.id,name:ct.name,format:ct.format,players:ct.players,positions});
+            merged.push({id:Date.now()+Math.floor(Math.random()*10000),cloud_id:ct.id,name:ct.name,format:ct.format,players,positions});
           }
         });
         saveTeamsRaw(merged);
-        // Quietly re-push any teams where we recovered local positions
+        // Quietly re-push any teams where local had data the cloud didn't
         for(const t of needsRePush){try{await pushCloudTeam(t);}catch(e){}}
       }
     }
