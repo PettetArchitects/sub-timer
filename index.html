@@ -526,7 +526,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <!-- Clock -->
   <div style="text-align:center;padding:12px 0 4px;flex-shrink:0">
     <div class="tmr-c" id="clk" style="margin:0;line-height:1;width:100%;display:block">00:00.00</div>
-    <div id="nsi" style="margin-top:4px;font-size:12px;color:#666"></div>
+    <div id="nsi" style="margin-top:4px;font-size:14px;color:#888;font-weight:600;letter-spacing:.3px"></div>
   </div>
 
   <!-- Formation picker (inline) -->
@@ -593,6 +593,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   </div>
 </div>
 
+<!-- What's New modal — fires once per version when APP_VERSION advances -->
+<div class="ov" id="whatsNewOv">
+  <div class="ab" style="max-width:380px;text-align:left">
+    <h2 style="text-align:center;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="sparkles" width="20" height="20" style="width:20px;height:20px;display:inline-flex"></i>What's New in <span id="whatsNewVer">v1.5</span></h2>
+    <div id="whatsNewTitle" style="text-align:center;font-size:13px;color:#5bc0de;font-weight:600;margin-bottom:14px"></div>
+    <ul id="whatsNewList" style="font-size:13px;color:#bbb;line-height:1.5;padding-left:20px;margin:0 0 8px"></ul>
+    <button class="btn btn-g" onclick="closeWhatsNew()" style="margin-top:14px">Got it ✓</button>
+  </div>
+</div>
 <!-- Sound pack picker: pick the sub-alert sound (game-screen access) -->
 <div class="ov" id="soundOv">
   <div class="ab" style="max-width:360px">
@@ -1305,12 +1314,14 @@ function showScr(id){
 // ===== HOME =====
 // ===== HOME TIPS CAROUSEL — feature reminders for returning users =====
 const HOME_TIPS=[
-  {icon:'camera',title:'Add players from a photo',desc:"Open the team editor and tap Auto-fill from photo. Reads the names straight off your roster sheet."},
-  {icon:'target',title:'Position tags drive smart subs',desc:"Tag each player GK/DEF/MID/etc. in the team editor. The app swaps players into positions they actually play."},
-  {icon:'bandage',title:'Tap any on-field player for an injury sub',desc:"Mid-game, a tap on any on-field player swaps them with the longest-benched sub. Choose 'out for game' if they can't return."},
-  {icon:'bell',title:'Choose your sub-alert sound',desc:"Tap the bell chip above the pitch during a match. Six packs including whistle, air horn, retro, and silent."},
-  {icon:'goal',title:'Tag who scored each goal',desc:"When you add a goal for your team, pick the scorer from the on-field players. Appears in your match log."},
-  {icon:'cloud',title:'Sync teams across devices',desc:"Sign in (top-right). Your teams and match history follow you to any phone or iPad."}
+  {icon:'camera',title:'Add players from a photo',desc:"Open the team editor and tap Auto-fill from photo. Reads names straight off your roster sheet."},
+  {icon:'target',title:'Position tags drive smart subs',desc:"Tag each player GK/DEF/MID/etc. The app swaps players into positions they actually play."},
+  {icon:'bandage',title:'Injury? Tap the player on the pitch',desc:"Mid-game, tapping any on-field player triggers an injury swap. Choose 'out for game' if they can't return."},
+  {icon:'refresh',title:'Undo a sub mistake',desc:"After confirming a swap, an UNDO LAST SUB pill appears next to the bench. Reverts the swap and rewinds the minutes."},
+  {icon:'arrowUp',title:'Reorder who comes on next',desc:"Up/down chevrons next to each bench player let you promote or demote them in the sub queue."},
+  {icon:'timer',title:'Choose a sub strategy',desc:"On Settings, pick Equal-time, Paired rotation, or Manual. Each picks differently who comes off and on at sub time."},
+  {icon:'goal',title:'Tag who scored each goal',desc:"When you add a goal, pick the scorer from the on-field players. Shows up in your match log."},
+  {icon:'cloud',title:'Sync across devices',desc:"Sign in (top-right). Your teams and match history follow you to any phone or iPad."}
 ];
 function renderTip(){
   const card=document.getElementById('tipsCard');
@@ -1344,7 +1355,41 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.4-beta';
+const APP_VERSION='v1.5-beta';
+// === Changelog data (mirrored in CHANGELOG.md) ===
+// The "What's New" modal pulls from this dict when APP_VERSION advances.
+// Only the latest version's entry is required for the modal; older entries
+// kept here for the "view past changes" link in feedback (future).
+const CHANGELOG_DATA={
+  'v1.5-beta':{
+    title:'Sync hardening + smarter score handling',
+    items:[
+      'Position tags no longer get wiped when syncing across devices',
+      'Players added offline are preserved on sync (longer list wins)',
+      'Sub strategy + GK settings correctly preserved across sync',
+      "Tap −1 on the score to correct a fat-finger goal — match log stays clean",
+      'Sport-aware text on Settings (netball uses "quarters", soccer uses "halves")',
+      'Legacy netball teams correctly identified by format (no more soccer-ball icon on netball cards)',
+      "\"Next sub at\" time slightly bigger so it's easier to glance",
+      "What's New modal introduced — you're looking at it"
+    ]
+  },
+  'v1.4-beta':{
+    title:'Undo + reorder + futsal',
+    items:[
+      'Undo Last Sub — instantly revert a swap, restore players, minutes, log',
+      'Bench reorder chevrons — promote / demote players in the sub queue',
+      'Sub strategy chooser moved to Settings (no more popup)',
+      'Paired rotation now balances minutes — the pair with the most game time goes off',
+      'Whole-game continuous sub schedule — cadence flows across halftime',
+      'Custom soccer-ball + netball icons that read clearly at any size',
+      'Futsal 5v5 + Summer 6v6 formats',
+      'Lucide icon library replaces all emoji',
+      'Tighter home screen — Start button on every team card',
+      '11v11 default half = 45 min (was 30)'
+    ]
+  }
+};
 function openFeedback(){
   // Pre-fill email if signed in
   const emailEl=document.getElementById('feedbackEmail');
@@ -3427,6 +3472,36 @@ function renderRoster(){
 // Legacy alias — renderG calls renderPitch
 function renderPitch(){ renderRoster(); }
 
+// === What's New modal — fires once per version when APP_VERSION advances ===
+function showWhatsNewModal(){
+  const data=CHANGELOG_DATA[APP_VERSION];
+  if(!data)return;
+  document.getElementById('whatsNewVer').textContent=APP_VERSION.replace(/-beta$/,'');
+  document.getElementById('whatsNewTitle').textContent=data.title;
+  document.getElementById('whatsNewList').innerHTML=data.items.map(i=>`<li style="margin-bottom:6px">${i}</li>`).join('');
+  document.getElementById('whatsNewOv').classList.add('show');
+  _li();
+}
+function closeWhatsNew(){
+  document.getElementById('whatsNewOv').classList.remove('show');
+  try{localStorage.setItem('subTimerLastSeenVersion',APP_VERSION);}catch(e){}
+}
+function maybeShowWhatsNew(){
+  let lastSeen=null;
+  try{lastSeen=localStorage.getItem('subTimerLastSeenVersion');}catch(e){}
+  if(lastSeen===APP_VERSION)return;
+  // A truly new install has no version key AND no teams or saved matches.
+  // Don't fire the modal at them — they're discovering features fresh.
+  // Existing users (either with an older lastSeen, OR no lastSeen but
+  // already-populated localStorage from a pre-modal build) see the modal.
+  const isBrandNewInstall=!lastSeen&&teams.length===0&&loadMatches().length===0;
+  if(isBrandNewInstall){
+    try{localStorage.setItem('subTimerLastSeenVersion',APP_VERSION);}catch(e){}
+    return;
+  }
+  showWhatsNewModal();
+}
+
 // Init
 // Stamp the running version next to the BETA tag in the persistent header.
 // (Landing hero version is baked directly into the renderHome template since
@@ -3435,6 +3510,7 @@ function renderPitch(){ renderRoster(); }
 renderHome();
 initCloudAuth();
 _li(); // materialise initial-page <i data-lucide> placeholders once Lucide is in
+maybeShowWhatsNew(); // fire the changelog modal if this is a new version for this device
 </script>
 </body>
 </html>
