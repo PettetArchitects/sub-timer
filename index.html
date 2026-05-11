@@ -2575,20 +2575,26 @@ function renderG(){
 
 function adjScore(who,d){
   if(!G)return;
-  if(who==='us'){
-    const prev=G.scoreUs;G.scoreUs=Math.max(0,G.scoreUs+d);
-    if(G.scoreUs>prev){
-      G.log.push({type:'goal',half:G.half,time:G.secs,who:'us'});
-      playGoalHorn();
-      // Prompt for who scored — pass the log index so the scorer can be attached after pick
-      promptScorer(G.log.length-1);
+  const key=who==='us'?'scoreUs':'scoreThem';
+  const prev=G[key];
+  G[key]=Math.max(0,G[key]+d);
+  if(G[key]>prev){
+    // Goal scored — log it. For our team also play horn + prompt for scorer.
+    G.log.push({type:'goal',half:G.half,time:G.secs,who});
+    if(who==='us'){playGoalHorn();promptScorer(G.log.length-1);}
+  } else if(G[key]<prev){
+    // Score decremented (coach correcting a fat-finger). Remove the most
+    // recent goal entry for this team so the match log stays in sync with
+    // the visible score — otherwise the summary shows phantom goals that
+    // don't add up to the final tally.
+    for(let i=G.log.length-1;i>=0;i--){
+      if(G.log[i].type==='goal'&&G.log[i].who===who){
+        G.log.splice(i,1);
+        break;
+      }
     }
-    document.getElementById('scoreUs').textContent=G.scoreUs;
-  } else {
-    const prev=G.scoreThem;G.scoreThem=Math.max(0,G.scoreThem+d);
-    if(G.scoreThem>prev) G.log.push({type:'goal',half:G.half,time:G.secs,who:'them'});
-    document.getElementById('scoreThem').textContent=G.scoreThem;
   }
+  document.getElementById(who==='us'?'scoreUs':'scoreThem').textContent=G[key];
   saveActiveGame();
 }
 // Scorer-picker overlay flow
