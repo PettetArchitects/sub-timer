@@ -904,7 +904,21 @@ function loadTeamsRaw(){
   try{ const d=localStorage.getItem('subTimerTeams'); return d?JSON.parse(d):[]; }catch(e){return[];}
 }
 function saveTeamsRaw(t){ localStorage.setItem('subTimerTeams',JSON.stringify(t)); }
-function loadTeams(){return loadTeamsRaw();}
+function loadTeams(){
+  // One-time migration: stamp team.sport on any legacy team that's missing it.
+  // We derive the sport from the team's format. Without this, old teams from
+  // pre-multi-sport builds always render with the soccer icon.
+  const arr=loadTeamsRaw();
+  let dirty=false;
+  arr.forEach(t=>{
+    if(!t.sport&&t.format&&FORMATS[t.format]&&FORMATS[t.format].sport){
+      t.sport=FORMATS[t.format].sport;
+      dirty=true;
+    }
+  });
+  if(dirty)saveTeamsRaw(arr);
+  return arr;
+}
 function saveTeams(t){ saveTeamsRaw(t); }
 
 // ===== ACTIVE GAME PERSISTENCE (survives refresh / app switch) =====
@@ -960,7 +974,18 @@ const SPORTS={
     formats:['nb-set','nb-go','nb-junior','nb-open']
   }
 };
-function getSport(team){return SPORTS[(team&&team.sport)||'soccer']||SPORTS.soccer;}
+function getSport(team){
+  // Prefer the explicit team.sport when set; otherwise fall back to deriving
+  // sport from the team's format (each FORMATS entry carries its sport key).
+  // This rescues legacy teams that were created before sport was tracked on
+  // the team record — so a team with format "nb-go" reads as netball even if
+  // team.sport is blank.
+  if(team&&team.sport&&SPORTS[team.sport]) return SPORTS[team.sport];
+  if(team&&team.format&&FORMATS[team.format]&&FORMATS[team.format].sport){
+    return SPORTS[FORMATS[team.format].sport]||SPORTS.soccer;
+  }
+  return SPORTS.soccer;
+}
 function getSportFromFormatKey(fmtKey){return SPORTS[(FORMATS[fmtKey]&&FORMATS[fmtKey].sport)||'soccer']||SPORTS.soccer;}
 function getPosTypes(team){return getSport(team).positions;}
 // Match-log render context — set before rendering a log so labels are sport-aware
