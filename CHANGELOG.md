@@ -4,6 +4,16 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v1.7-beta — Jersey numbers
+
+- 🔢 **Per-player jersey number** — small input on each row in the team editor (all sports)
+- 🔢 **Displayed on pitch cards + bench rows** at runtime so coaches can call players by number
+- 🔢 **Optional** — leave blank for kids without fixed jerseys, no impact
+- ☁ New `numbers` JSONB column on cloud `teams` table; merge logic preserves the richer side, same pattern as positions / sides / foots
+- 📝 Rename + delete handlers migrate the numbers key alongside everything else
+
+---
+
 ## v1.6-beta — Player side + foot preferences
 
 - 🦶 **Per-player side preference** (L / R / Both) — captured in the team editor for soccer teams
