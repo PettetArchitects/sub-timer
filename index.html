@@ -1001,11 +1001,13 @@ const FORMATIONS = {
     '1-1-2':   [{label:'D',x:50,y:75},{label:'M',x:50,y:48},{label:'LF',x:30,y:22},{label:'RF',x:70,y:22}],
   },
   '5v5': {
-    '2-2-1':   [{label:'LD',x:30,y:75},{label:'RD',x:70,y:75},{label:'LM',x:30,y:48},{label:'RM',x:70,y:48},{label:'FW',x:50,y:22}],
-    '1-2-2':   [{label:'D',x:50,y:75},{label:'LM',x:30,y:48},{label:'RM',x:70,y:48},{label:'LF',x:35,y:22},{label:'RF',x:65,y:22}],
-    '2-1-2':   [{label:'LD',x:30,y:75},{label:'RD',x:70,y:75},{label:'CM',x:50,y:48},{label:'LF',x:35,y:22},{label:'RF',x:65,y:22}],
-    '1-3-1':   [{label:'D',x:50,y:75},{label:'LM',x:20,y:48},{label:'CM',x:50,y:48},{label:'RM',x:80,y:48},{label:'FW',x:50,y:22}],
-    '3-1-1':   [{label:'LD',x:20,y:75},{label:'CD',x:50,y:78},{label:'RD',x:80,y:75},{label:'M',x:50,y:48},{label:'FW',x:50,y:22}],
+    // Futsal / 5-aside — 4 outfield + 1 GK. Naming follows futsal positions:
+    // Fixo (defender/libero), Ala (winger), Pivô (target forward).
+    '1-2-1':   [{label:'FX',x:50,y:78},{label:'LA',x:25,y:50},{label:'RA',x:75,y:50},{label:'PV',x:50,y:22}],
+    '2-2':     [{label:'LD',x:30,y:75},{label:'RD',x:70,y:75},{label:'LF',x:30,y:25},{label:'RF',x:70,y:25}],
+    '3-1':     [{label:'LD',x:22,y:75},{label:'CD',x:50,y:78},{label:'RD',x:78,y:75},{label:'PV',x:50,y:22}],
+    '1-3':     [{label:'FX',x:50,y:78},{label:'LA',x:25,y:25},{label:'PV',x:50,y:20},{label:'RA',x:75,y:25}],
+    '2-1-1':   [{label:'LD',x:30,y:75},{label:'RD',x:70,y:75},{label:'M',x:50,y:48},{label:'FW',x:50,y:22}],
   },
   '7v7': {
     '2-3-1':   [{label:'LB',x:25,y:72},{label:'RB',x:75,y:72},{label:'LM',x:20,y:48},{label:'CM',x:50,y:45},{label:'RM',x:80,y:48},{label:'FW',x:50,y:22}],
@@ -1037,7 +1039,7 @@ const FORMATIONS = {
 
 const FORMATS = {
   '4v4':  { sport:'soccer', label:'4v4',  age:'U6',    onField:4,  hasGk:false, defaultHalf:10, defaultSub:5,  defaultSc:1, defaultFormation:'2-2' },
-  '5v5':  { sport:'soccer', label:'5v5',  age:'U7',    onField:5,  hasGk:false, defaultHalf:15, defaultSub:5,  defaultSc:1, defaultFormation:'2-2-1' },
+  '5v5':  { sport:'soccer', label:'5v5',  age:'Futsal / 5-aside', onField:5, hasGk:true, defaultHalf:20, defaultSub:2, defaultSc:2, defaultFormation:'1-2-1' },
   '7v7':  { sport:'soccer', label:'7v7',  age:'U8-9',  onField:7,  hasGk:true,  defaultHalf:20, defaultSub:5,  defaultSc:2, defaultFormation:'2-3-1' },
   '9v9':  { sport:'soccer', label:'9v9',  age:'U10-11',onField:9,  hasGk:true,  defaultHalf:25, defaultSub:8,  defaultSc:2, defaultFormation:'3-3-2' },
   '11v11':{ sport:'soccer', label:'11v11',age:'U12+',  onField:11, hasGk:true,  defaultHalf:45, defaultSub:15, defaultSc:2, defaultFormation:'4-4-2' },
@@ -1873,12 +1875,9 @@ const FORMATION_TIPS={
   '1-2-1':'Diamond shape. One back, two wide mids, one striker. Stretches the field and works well if your kids can pass.',
   '2-1-1':'Defensive. Two solid backs, one playmaker, one striker. Good against a stronger team.',
   '1-1-2':'Attacking. One back, two forwards. Risky — only use it if you can win the ball back fast.',
-  // 5v5
-  '2-2-1':'Standard 5v5 setup. Balanced two-two-one. Hard to go wrong.',
-  '1-2-2':'Attacking — two strikers up top. Score-first, defend-on-the-counter mindset.',
-  '2-1-2':'Counter-attack focus. Solid back two, one playmaker, two forwards ready to break.',
-  '1-3-1':'Y-shape. Three midfielders dominate the centre — suits teams who can keep possession.',
-  '3-1-1':'Defensive. Three at the back, one mid, one striker. Good when protecting a lead or facing a stronger team.',
+  // 5v5 — futsal / 5-aside (4 outfield + GK)
+  '3-1':'Pyramid. Three at the back, one pivô. Defensive — soak pressure, hit on the break.',
+  '1-3':'Pivot-heavy attack. One fixo, three forwards. Risky — use late when chasing a goal.',
   // 7v7
   '2-3-1':'The default junior 7v7 setup. Balanced — three mids own the middle. Good place to start.',
   '3-2-1':'Defensive. Three at the back, one striker. Easy to teach and hard to score against.',
@@ -1907,12 +1906,9 @@ const FORMATION_SHORTS={
   '1-2-1':'Diamond shape',
   '2-1-1':'Defensive',
   '1-1-2':'Attacking · risky',
-  // 5v5
-  '2-2-1':'Balanced default',
-  '1-2-2':'Attack-first',
-  '2-1-2':'Counter-attack',
-  '1-3-1':'Possession Y',
-  '3-1-1':'Defensive',
+  // 5v5 — futsal / 5-aside (4 outfield + GK)
+  '3-1':'Pyramid · defensive',
+  '1-3':'Attack · pivot heavy',
   // 7v7
   '2-3-1':'Balanced default',
   '3-2-1':'Defensive',
