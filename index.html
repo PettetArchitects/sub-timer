@@ -28,7 +28,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
 /* Layout */
 .app{width:100%;max-width:430px;height:100dvh;max-height:100dvh;overflow:hidden}
-@media(min-width:768px){.app{max-width:430px}}
+@media(min-width:768px){.app{max-width:560px}}
+@media(min-width:1024px){.app{max-width:640px}}
 
 .hdr{background:linear-gradient(135deg,#16213e,#0f3460);padding:10px 16px;text-align:center;border-bottom:3px solid #e94560;position:sticky;top:0;z-index:10}
 .hdr h1{font-size:18px;font-weight:700;letter-spacing:1px}
@@ -37,7 +38,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .hdr-row h1{font-size:16px}
 .back-btn{background:none;border:none;color:#e94560;font-size:14px;font-weight:600;cursor:pointer;padding:4px 8px}
 
-.scr{display:none;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:column;justify-content:center}.scr.active{display:flex}#s3.active{justify-content:flex-start;overflow:hidden}#s4.active{overflow:hidden;justify-content:flex-start}#editTeam.active,#sportPicker.active,#gradePicker.active,#s5.active{justify-content:flex-start}
+.scr{display:none;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:column;justify-content:flex-start}.scr.active{display:flex}#s3.active{justify-content:flex-start;overflow:hidden}#s4.active{overflow:hidden;justify-content:flex-start}#home.active,#s1.active,#s2.active,#editTeam.active,#sportPicker.active,#gradePicker.active,#s5.active{justify-content:flex-start}
 .sec{padding:16px}
 .sec h2{font-size:15px;margin-bottom:10px;color:#e94560;font-weight:700}
 .info{background:#16213e;padding:10px 16px;font-size:13px;color:#aaa;text-align:center}
@@ -1838,6 +1839,40 @@ const FORMATION_TIPS={
   // Netball — only one "formation"
   'standard':'Standard netball — GS up top, GK at the back, C in the middle, WA/WD/GA/GD between. Positions are fixed by rule; the only choice is who plays where.'
 };
+// Short blurbs shown inside the formation pills — keep punchy so coaches can scan at a glance
+const FORMATION_SHORTS={
+  // 4v4
+  '2-2':'Balanced · easy',
+  '1-2-1':'Diamond shape',
+  '2-1-1':'Defensive',
+  '1-1-2':'Attacking · risky',
+  // 5v5
+  '2-2-1':'Balanced default',
+  '1-2-2':'Attack-first',
+  '2-1-2':'Counter-attack',
+  '1-3-1':'Possession Y',
+  '3-1-1':'Defensive',
+  // 7v7
+  '2-3-1':'Balanced default',
+  '3-2-1':'Defensive',
+  '2-2-2':'Wide & attacking',
+  '1-3-2':'Possession diamond',
+  '3-1-2':'Counter-attack',
+  '1-2-3':'All-out attack',
+  // 9v9
+  '3-3-2':'Balanced default',
+  '3-2-3':'Wide attack',
+  '2-4-2':'Midfield heavy',
+  '3-4-1':'Defensive',
+  '2-3-3':'Attacking',
+  // 11v11
+  '4-4-2':'Balanced classic',
+  '4-3-3':'Wide attack',
+  '3-5-2':'Possession',
+  '4-5-1':'Defensive',
+  // Netball
+  'standard':'Fixed positions'
+};
 function renderFormationPicker(){
   const g=document.getElementById('formationGrid');
   g.innerHTML='';
@@ -1845,22 +1880,15 @@ function renderFormationPicker(){
   Object.keys(forms).forEach(k=>{
     const c=document.createElement('div');
     c.className='chip'+(curFormation===k?' sel':'');
-    c.style.cssText='padding:10px 4px;font-size:13px';
-    c.textContent=k;
+    c.style.cssText='padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:54px';
+    const short=FORMATION_SHORTS[k]||'';
+    c.innerHTML=`<div style="font-weight:800;font-size:14px;letter-spacing:.3px">${k}</div>${short?`<div style="font-size:10px;color:#888;font-weight:500;line-height:1.2;text-align:center">${short}</div>`:''}`;
     c.onclick=()=>{curFormation=k;renderFormationPicker();};
     g.appendChild(c);
   });
-  // Show the strengths tip for the currently-selected formation
+  // Hide the legacy long-tip box — pill blurbs replace it
   const tipEl=document.getElementById('formationTip');
-  if(tipEl){
-    const tip=FORMATION_TIPS[curFormation];
-    if(tip){
-      tipEl.innerHTML=`<strong style="color:#5bc0de">${curFormation}</strong> — ${tip}`;
-      tipEl.style.display='';
-    }else{
-      tipEl.style.display='none';
-    }
-  }
+  if(tipEl)tipEl.style.display='none';
 }
 
 // ===== S2: SETTINGS =====
@@ -2532,8 +2560,9 @@ function toggleGameFormation(){
     Object.keys(forms).forEach(k=>{
       const c=document.createElement('div');
       c.className='chip'+(curFormation===k?' sel':'');
-      c.style.cssText='padding:8px 12px;font-size:13px;cursor:pointer';
-      c.textContent=k;
+      c.style.cssText='padding:6px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:84px';
+      const short=FORMATION_SHORTS[k]||'';
+      c.innerHTML=`<div style="font-weight:800;font-size:13px;letter-spacing:.3px">${k}</div>${short?`<div style="font-size:9px;color:#888;font-weight:500;line-height:1.1">${short}</div>`:''}`;
       c.onclick=()=>{ selectGameFormation(k); };
       g.appendChild(c);
     });
@@ -2552,8 +2581,9 @@ function toggleOppFormation(){
     Object.keys(forms).forEach(k=>{
       const c=document.createElement('div');
       c.className='chip'+(G&&G.oppFormation===k?' sel':'');
-      c.style.cssText='padding:8px 12px;font-size:13px;cursor:pointer';
-      c.textContent=k;
+      c.style.cssText='padding:6px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:84px';
+      const short=FORMATION_SHORTS[k]||'';
+      c.innerHTML=`<div style="font-weight:800;font-size:13px;letter-spacing:.3px">${k}</div>${short?`<div style="font-size:9px;color:#888;font-weight:500;line-height:1.1">${short}</div>`:''}`;
       c.onclick=()=>{ selectOppFormation(k); };
       g.appendChild(c);
     });
