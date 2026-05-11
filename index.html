@@ -427,6 +427,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
         <select id="gk2SettingSel" onchange="gk2=parseInt(this.value)" style="background:#0a1628;color:#eee;border:1.5px solid #e94560;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;font-family:inherit;outline:none"></select>
       </div>
     </div>
+    <h2 style="margin-top:14px">Alerts</h2>
+    <div style="font-size:12px;color:#888;margin-bottom:8px">Sound played at sub time and on a goal. Tap to preview.</div>
+    <div class="chip-grid" id="soundPackGrid" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
     <div id="subPrev" style="margin-top:12px;padding:12px;background:#16213e;border-radius:10px;font-size:13px;color:#aaa;text-align:center"></div>
     <button class="btn btn-g" onclick="quickStart()" style="font-size:18px;padding:16px">Start Game ⏱</button>
   </div>
@@ -936,46 +939,75 @@ const fn=name=>{
 const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 const fmtMs=ms=>{const ts=Math.floor(ms/1000);const cs=Math.floor((ms%1000)/10);return String(Math.floor(ts/60)).padStart(2,'0')+':'+String(ts%60).padStart(2,'0')+'.'+String(cs).padStart(2,'0');};
 
-// ===== AUDIO: referee whistle using Web Audio API =====
+// ===== AUDIO: sound packs via Web Audio API =====
 let audioCtx=null;
 function ensureAudio(){
   if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
 }
+// Each pack defines a sub(ctx,now) and goal(ctx,now) function that creates oscillators
+// synthesizing the sound. null = silent (vibrate only).
+const SOUND_PACKS={
+  classic:{label:'Classic',icon:'📟',desc:'Quick beeps',
+    sub:(c,t)=>{[0,0.3,0.6].forEach(o=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='square';s.frequency.setValueAtTime(880,t+o);g.gain.setValueAtTime(0.2,t+o);g.gain.setValueAtTime(0.2,t+o+0.12);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.15);s.start(t+o);s.stop(t+o+0.18);});},
+    goal:(c,t)=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sawtooth';s.frequency.setValueAtTime(220,t);s.frequency.linearRampToValueAtTime(330,t+0.3);g.gain.setValueAtTime(0.25,t);g.gain.setValueAtTime(0.25,t+0.4);g.gain.exponentialRampToValueAtTime(0.01,t+0.8);s.start(t);s.stop(t+0.85);}
+  },
+  whistle:{label:'Whistle',icon:'🎽',desc:"Coach's whistle",
+    sub:(c,t)=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sine';s.frequency.setValueAtTime(2500,t);for(let i=0;i<8;i++)s.frequency.setValueAtTime(i%2?2400:2700,t+i*0.05);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.22,t+0.02);g.gain.setValueAtTime(0.22,t+0.45);g.gain.exponentialRampToValueAtTime(0.01,t+0.55);s.start(t);s.stop(t+0.6);},
+    goal:(c,t)=>{[0,0.18,0.36].forEach(o=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sine';s.frequency.setValueAtTime(2800,t+o);g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(0.25,t+o+0.02);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.16);s.start(t+o);s.stop(t+o+0.2);});}
+  },
+  airhorn:{label:'Air Horn',icon:'📣',desc:'Stadium vibes',
+    sub:(c,t)=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sawtooth';s.frequency.setValueAtTime(180,t);g.gain.setValueAtTime(0.32,t);g.gain.setValueAtTime(0.32,t+0.45);g.gain.exponentialRampToValueAtTime(0.01,t+0.55);s.start(t);s.stop(t+0.6);},
+    goal:(c,t)=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sawtooth';s.frequency.setValueAtTime(160,t);g.gain.setValueAtTime(0.32,t);g.gain.setValueAtTime(0.32,t+1.2);g.gain.exponentialRampToValueAtTime(0.01,t+1.5);s.start(t);s.stop(t+1.55);}
+  },
+  bell:{label:'Bell',icon:'🔔',desc:'Gentle chimes',
+    sub:(c,t)=>{[[1000,0],[1500,0.25]].forEach(([f,o])=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sine';s.frequency.setValueAtTime(f,t+o);g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(0.25,t+o+0.02);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.65);s.start(t+o);s.stop(t+o+0.7);});},
+    goal:(c,t)=>{[800,1000,1200,1500].forEach((f,i)=>{const o=i*0.14;const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='sine';s.frequency.setValueAtTime(f,t+o);g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(0.25,t+o+0.02);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.7);s.start(t+o);s.stop(t+o+0.75);});}
+  },
+  retro:{label:'Retro',icon:'🎮',desc:'8-bit arcade',
+    sub:(c,t)=>{[[660,0],[880,0.08],[1320,0.16]].forEach(([f,o])=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='square';s.frequency.setValueAtTime(f,t+o);g.gain.setValueAtTime(0.2,t+o);g.gain.setValueAtTime(0.2,t+o+0.06);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.09);s.start(t+o);s.stop(t+o+0.1);});},
+    goal:(c,t)=>{[523,659,784,1047,1319].forEach((f,i)=>{const o=i*0.1;const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='square';s.frequency.setValueAtTime(f,t+o);g.gain.setValueAtTime(0.2,t+o);g.gain.setValueAtTime(0.2,t+o+0.08);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.11);s.start(t+o);s.stop(t+o+0.12);});}
+  },
+  silent:{label:'Silent',icon:'🔇',desc:'Vibrate only',sub:null,goal:null}
+};
+function getSoundPackKey(){try{return localStorage.getItem('subTimerSoundPack')||'classic';}catch(e){return 'classic';}}
+function setSoundPackKey(k){try{localStorage.setItem('subTimerSoundPack',k);}catch(e){}}
+function getSoundPack(){return SOUND_PACKS[getSoundPackKey()]||SOUND_PACKS.classic;}
 function playSubAlert(){
   ensureAudio();
   if(!audioCtx)return;
   if(audioCtx.state==='suspended')audioCtx.resume();
-  const now=audioCtx.currentTime;
-  // Three quick digital beeps — phone alarm style
-  [0, 0.3, 0.6].forEach(offset=>{
-    const osc=audioCtx.createOscillator();
-    const gain=audioCtx.createGain();
-    osc.connect(gain);gain.connect(audioCtx.destination);
-    osc.type='square';
-    osc.frequency.setValueAtTime(880,now+offset);
-    gain.gain.setValueAtTime(0.2,now+offset);
-    gain.gain.setValueAtTime(0.2,now+offset+0.12);
-    gain.gain.exponentialRampToValueAtTime(0.01,now+offset+0.15);
-    osc.start(now+offset);
-    osc.stop(now+offset+0.18);
-  });
+  const pack=getSoundPack();
+  if(pack.sub)pack.sub(audioCtx,audioCtx.currentTime);
 }
 function playGoalHorn(){
   ensureAudio();
   if(!audioCtx)return;
   if(audioCtx.state==='suspended')audioCtx.resume();
-  const now=audioCtx.currentTime;
-  // Deep celebratory horn
-  const osc=audioCtx.createOscillator();
-  const gain=audioCtx.createGain();
-  osc.connect(gain);gain.connect(audioCtx.destination);
-  osc.type='sawtooth';
-  osc.frequency.setValueAtTime(220,now);
-  osc.frequency.linearRampToValueAtTime(330,now+0.3);
-  gain.gain.setValueAtTime(0.25,now);
-  gain.gain.setValueAtTime(0.25,now+0.4);
-  gain.gain.exponentialRampToValueAtTime(0.01,now+0.8);
-  osc.start(now);osc.stop(now+0.85);
+  const pack=getSoundPack();
+  if(pack.goal)pack.goal(audioCtx,audioCtx.currentTime);
+}
+function renderSoundPicker(){
+  const g=document.getElementById('soundPackGrid');
+  if(!g)return;
+  g.innerHTML='';
+  const cur=getSoundPackKey();
+  Object.entries(SOUND_PACKS).forEach(([k,p])=>{
+    const c=document.createElement('div');
+    c.className='chip'+(cur===k?' sel':'');
+    c.style.cssText='padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:3px';
+    c.innerHTML=`<div style="font-size:20px;line-height:1">${p.icon}</div>
+      <div style="font-weight:800;font-size:12px;letter-spacing:.3px">${p.label}</div>
+      <div style="font-size:10px;color:#888;font-weight:500">${p.desc}</div>`;
+    c.onclick=()=>selectSoundPack(k);
+    g.appendChild(c);
+  });
+}
+function selectSoundPack(k){
+  setSoundPackKey(k);
+  renderSoundPicker();
+  // Preview the sub alert (or vibrate if silent)
+  if(SOUND_PACKS[k].sub){playSubAlert();}
+  else if(navigator.vibrate){navigator.vibrate([100,60,100]);}
 }
 
 function showScr(id){
@@ -1453,6 +1485,7 @@ function goSettings(){
   setDisplayNameList(avail);
   renderFmtPicker();
   renderFormationPicker();
+  renderSoundPicker();
   updPrev();
   updateGkSettings();
   document.getElementById('hmV').textContent=cfg.hm;
