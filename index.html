@@ -765,7 +765,9 @@ async function pushCloudTeam(team){
       sport:team.sport||(FORMATS[team.format]&&FORMATS[team.format].sport)||'soccer',
       format:team.format||null,
       players:team.players||[],
-      positions:team.positions||{}
+      positions:team.positions||{},
+      sides:team.sides||{},
+      foots:team.foots||{}
     };
     if(team.cloud_id){
       const{error}=await sb.from('teams').update(row).eq('id',team.cloud_id);
@@ -848,6 +850,13 @@ async function doInitialSync(){
           const cloudHasPos=ct.positions&&Object.keys(ct.positions).length>0;
           const localHasPos=existing&&existing.positions&&Object.keys(existing.positions).length>0;
           const positions=cloudHasPos?ct.positions:(localHasPos?existing.positions:{});
+          // Side preference + dominant foot — same rule as positions.
+          const cloudHasSides=ct.sides&&Object.keys(ct.sides).length>0;
+          const localHasSides=existing&&existing.sides&&Object.keys(existing.sides).length>0;
+          const sides=cloudHasSides?ct.sides:(localHasSides?existing.sides:{});
+          const cloudHasFoots=ct.foots&&Object.keys(ct.foots).length>0;
+          const localHasFoots=existing&&existing.foots&&Object.keys(existing.foots).length>0;
+          const foots=cloudHasFoots?ct.foots:(localHasFoots?existing.foots:{});
           // Players: same rule. If local has more players than cloud, the
           // user probably added some offline before the push landed — keep
           // them rather than clobbering with cloud's shorter list.
@@ -860,12 +869,11 @@ async function doInitialSync(){
           // would lose the rename, but that needs per-field timestamps to
           // fix robustly. Logged as a known limitation.
           if(existing){
-            merged.push({...existing,name:ct.name,format:ct.format,players,positions,cloud_id:ct.id});
-            if((localHasPos&&!cloudHasPos)||localPlayers.length>cloudPlayers.length){
-              needsRePush.push(merged[merged.length-1]);
-            }
+            merged.push({...existing,name:ct.name,format:ct.format,players,positions,sides,foots,cloud_id:ct.id});
+            const localRicher=(localHasPos&&!cloudHasPos)||(localHasSides&&!cloudHasSides)||(localHasFoots&&!cloudHasFoots)||localPlayers.length>cloudPlayers.length;
+            if(localRicher)needsRePush.push(merged[merged.length-1]);
           }else{
-            merged.push({id:Date.now()+Math.floor(Math.random()*10000),cloud_id:ct.id,name:ct.name,format:ct.format,players,positions});
+            merged.push({id:Date.now()+Math.floor(Math.random()*10000),cloud_id:ct.id,name:ct.name,format:ct.format,players,positions,sides,foots});
           }
         });
         saveTeamsRaw(merged);
@@ -1047,6 +1055,20 @@ function getPlayerPos(team,name){ return (team.positions&&team.positions[name])|
 function setPlayerPos(team,name,pos){
   if(!team.positions)team.positions={};
   team.positions[name]=pos;
+}
+// Side preference: which flank the player favours (L/R/B). Defaults to 'B'
+// (both) so unset players are treated as flexible by smartAssign.
+function getPlayerSide(team,name){ return (team.sides&&team.sides[name])||'B'; }
+function setPlayerSide(team,name,side){
+  if(!team.sides)team.sides={};
+  team.sides[name]=side;
+}
+// Dominant foot. Separate from side preference (a right-footer often prefers
+// playing left to cut inside). Defaults to 'B' as well.
+function getPlayerFoot(team,name){ return (team.foots&&team.foots[name])||'B'; }
+function setPlayerFoot(team,name,foot){
+  if(!team.foots)team.foots={};
+  team.foots[name]=foot;
 }
 function posTagsHTML(positions,mini){
   if(!positions||!positions.length)return '';
@@ -1355,12 +1377,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.5-beta';
+const APP_VERSION='v1.6-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.6-beta':{
+    title:'Player side + foot preferences',
+    items:[
+      'Tag each player with a side preference (Left / Right / Both)',
+      'Tag each player with a dominant foot (Left / Right / Both)',
+      "Open any team's editor to fill these in — defaults are 'Both' so old teams aren't broken",
+      'Soccer only for now (netball positions are fixed by rule)'
+    ]
+  },
   'v1.5-beta':{
     title:'Reliability + polish',
     items:[
@@ -1669,6 +1700,46 @@ function renderEditTeam(){
     });
     tagsRow.appendChild(tags);
     wrap.appendChild(tagsRow);
+    // Soccer-only: side preference + dominant foot. Netball positions are
+    // fixed by rule so left/right doesn't apply there.
+    const _sport=getSport(editingTeam);
+    if(_sport.key==='soccer'){
+      const prefRow=document.createElement('div');
+      prefRow.style.cssText='display:flex;gap:14px;margin-left:4px;margin-top:6px;flex-wrap:wrap;font-size:11px';
+      const buildPicker=(label,curVal,onPick)=>{
+        const opts=[{v:'L',t:'L'},{v:'B',t:'Both'},{v:'R',t:'R'}];
+        const wrap2=document.createElement('div');
+        wrap2.style.cssText='display:flex;align-items:center;gap:6px';
+        wrap2.innerHTML=`<span style="font-weight:700;color:#666;letter-spacing:1px;text-transform:uppercase">${label}</span>`;
+        const grp=document.createElement('div');
+        grp.style.cssText='display:inline-flex;border:1px solid #2a3550;border-radius:6px;overflow:hidden';
+        opts.forEach((o,oi)=>{
+          const btn=document.createElement('button');
+          btn.type='button';
+          const sel=curVal===o.v;
+          btn.style.cssText='padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;border:none;'+(sel?'background:#00d4aa;color:#0a1628':'background:transparent;color:#888')+';'+(oi<opts.length-1?'border-right:1px solid #2a3550':'');
+          btn.textContent=o.t;
+          btn.onclick=(e)=>{e.preventDefault();onPick(o.v);};
+          grp.appendChild(btn);
+        });
+        wrap2.appendChild(grp);
+        return wrap2;
+      };
+      // Resolve player name (matching the position-tag logic — auto-name unnamed rows)
+      const ensureName=()=>{
+        let nm=editingTeam.players[i];
+        if(!nm||!nm.trim()){
+          let n=editingTeam.players.length;
+          nm=`Player ${i+1}`;
+          while(editingTeam.players.some((p,j)=>j!==i&&p===nm)){nm=`Player ${++n}`;}
+          editingTeam.players[i]=nm;
+        }
+        return nm;
+      };
+      prefRow.appendChild(buildPicker('Side',getPlayerSide(editingTeam,p),v=>{setPlayerSide(editingTeam,ensureName(),v);renderEditTeam();}));
+      prefRow.appendChild(buildPicker('Foot',getPlayerFoot(editingTeam,p),v=>{setPlayerFoot(editingTeam,ensureName(),v);renderEditTeam();}));
+      wrap.appendChild(prefRow);
+    }
     c.appendChild(wrap);
   });
 }
@@ -1692,18 +1763,26 @@ function addPlayerField(){
 function onPlayerNameChange(idx,newValue){
   const oldName=editingTeam.players[idx]||'';
   editingTeam.players[idx]=newValue;
-  if(!editingTeam.positions)editingTeam.positions={};
-  if(oldName!==newValue&&oldName&&(oldName in editingTeam.positions)){
-    const data=editingTeam.positions[oldName];
-    delete editingTeam.positions[oldName];
-    if(newValue)editingTeam.positions[newValue]=data;
-  }
+  if(oldName===newValue||!oldName)return;
+  // Migrate keyed data (positions / sides / foots) when a player is renamed.
+  // Same pattern applied to each so prefs follow the rename rather than
+  // getting stranded on an orphaned key.
+  ['positions','sides','foots'].forEach(field=>{
+    if(!editingTeam[field])editingTeam[field]={};
+    if(oldName in editingTeam[field]){
+      const data=editingTeam[field][oldName];
+      delete editingTeam[field][oldName];
+      if(newValue)editingTeam[field][newValue]=data;
+    }
+  });
 }
-// Remove player + clean up their position entry
+// Remove player + clean up their keyed prefs
 function removePlayerField(idx){
   const name=editingTeam.players[idx];
-  if(name&&editingTeam.positions&&name in editingTeam.positions){
-    delete editingTeam.positions[name];
+  if(name){
+    ['positions','sides','foots'].forEach(field=>{
+      if(editingTeam[field]&&name in editingTeam[field])delete editingTeam[field][name];
+    });
   }
   editingTeam.players.splice(idx,1);
   renderEditTeam();

@@ -4,6 +4,17 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v1.6-beta — Player side + foot preferences
+
+- 🦶 **Per-player side preference** (L / R / Both) — captured in the team editor for soccer teams
+- 🦶 **Per-player dominant foot** (L / R / Both) — a right-footer often prefers playing left to cut inside, so we keep these as separate fields
+- 🆕 Open any existing team's editor to fill these in — defaults are "Both" so old teams aren't broken
+- 🏐 Soccer only — netball positions are fixed by rule, no side concept
+- ☁ New `sides` + `foots` JSONB columns on the cloud `teams` table; merge logic preserves the richer side
+- 📝 Rename + delete handlers migrate side/foot keys alongside positions
+
+---
+
 ## v1.5-beta — Sync hardening + smarter score handling
 
 - 🛡 **Position tags no longer get wiped when syncing across devices** — the cloud merge now preserves whichever side has data
