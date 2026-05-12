@@ -460,6 +460,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <h2 style="margin-top:14px">Sub Strategy</h2>
     <div style="font-size:12px;color:#888;margin-bottom:8px">How should the app pick who comes off and on?</div>
     <div id="subStratGrid" style="display:flex;flex-direction:column;gap:6px"></div>
+    <!-- Game Plan panel (visible when Full Control strategy is selected) -->
+    <div id="gamePlanPanel" style="display:none;margin-top:14px;padding:12px;background:#16213e;border:1.5px solid #a78bfa;border-radius:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:700;color:#a78bfa;font-size:13px;letter-spacing:.5px"><i data-lucide="clipboard-list" width="16" height="16" style="width:16px;height:16px;display:inline-flex"></i><span>Game Plan</span></div>
+        <button type="button" onclick="document.getElementById('planPhotoInput').click()" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid #a78bfa;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;letter-spacing:.5px"><i data-lucide="camera" width="13" height="13" style="width:13px;height:13px;display:inline-flex"></i>SNAP MY PLAN</button>
+        <input type="file" id="planPhotoInput" accept="image/*" style="display:none" onchange="handlePlanPhoto(this)">
+      </div>
+      <div id="planPhotoStatus" style="display:none;margin-bottom:8px;font-size:12px;padding:8px 10px;border-radius:6px"></div>
+      <div style="font-size:11px;color:#999;margin-bottom:8px;line-height:1.4">Auto-suggested plan based on Equal-time fairness — tap any swap to override. Or snap a photo of your handwritten plan and we'll digitise it.</div>
+      <div id="planTimeline" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
     <div id="gkSettingsSection" style="display:none">
       <h2 style="margin-top:14px">Goalkeepers</h2>
       <div class="set-row">
@@ -593,6 +604,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   </div>
 </div>
 
+<!-- Game Plan swap editor — opens when a planned sub event is tapped -->
+<div class="ov" id="planEditOv">
+  <div class="ab" style="max-width:380px;max-height:80vh;overflow-y:auto;text-align:left">
+    <div id="planEditBody"></div>
+  </div>
+</div>
 <!-- What's New modal — fires once per version when APP_VERSION advances -->
 <div class="ov" id="whatsNewOv">
   <div class="ab" style="max-width:380px;text-align:left">
@@ -1220,7 +1237,8 @@ const ICON_ALIAS={
   bulb:'lightbulb',edit:'pencil',camera:'camera',bandage:'bandage',
   arrowUp:'arrow-up',arrowDown:'arrow-down',swap:'arrow-left-right',
   megaphone:'megaphone',gamepad:'gamepad-2',activity:'activity',
-  volume:'volume-2',goal:'goal',ball:'volleyball',pen:'pencil'
+  volume:'volume-2',goal:'goal',ball:'volleyball',pen:'pencil',
+  clipboard:'clipboard-list',camera2:'camera'
 };
 // Custom inline SVGs for icons Lucide doesn't carry (e.g. proper soccer ball
 // with pentagon centre — Lucide's "volleyball" reads as netball).
@@ -1390,12 +1408,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.7-beta';
+const APP_VERSION='v1.8-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.8-beta':{
+    title:'Full Control + Game Plan',
+    items:[
+      'New "Full control" strategy — plan every sub before kickoff',
+      'Auto-generates a fair plan you can tweak; tap any swap to override',
+      'Snap a photo of a handwritten plan and we’ll digitise it',
+      'Strategy descriptions now lead with the coach archetype'
+    ]
+  },
   'v1.7-beta':{
     title:'Jersey numbers',
     items:[
@@ -2003,6 +2030,8 @@ function goSettings(){
   renderFormationPicker();
   renderSoundPicker();
   renderSubStratPicker();
+  cfg.subPlanStale=true; // regenerate fresh on each Settings entry
+  renderGamePlanPanel();
   updPrev();
   updateGkSettings();
   document.getElementById('hmV').textContent=cfg.hm;
@@ -2190,9 +2219,10 @@ function renderFormationPicker(){
 // in-game change-strategy modal. Coach picks one before kickoff; affects how
 // trigSub() chooses who comes off and on each interval.
 const SUB_STRATEGIES=[
-  {key:'fair',  icon:'timer',  label:'Equal time',     color:'#00d4aa', desc:'Longest on-field player comes off; longest-benched comes on. Best for fair-play rules.'},
-  {key:'paired',icon:'refresh',label:'Paired rotation',color:'#5bc0de', desc:'Pre-grouped pairs swap on/off together — picks the pair with the most game time so groups stay together and minutes balance out.'},
-  {key:'manual',icon:'target', label:"I'll call them",color:'#f0a500', desc:'No auto-prompts. Tap SUB when you want a swap. App still tracks minutes and suggests who.'}
+  {key:'fair',    icon:'timer',    label:'Equal time',    color:'#00d4aa', stance:'I just want everyone to play.',         desc:'App picks the longest on-field player to come off, and longest-benched to come on. Best for fair-play rules.'},
+  {key:'paired',  icon:'refresh',  label:'Paired rotation',color:'#5bc0de',stance:'Keep my pairs together.',                desc:'Pre-grouped pairs swap on/off together. Picks the pair with the most game time so groups stay together AND minutes balance.'},
+  {key:'manual',  icon:'target',   label:"I'll call them",color:'#f0a500', stance:"I'll call them as I see them.",          desc:'No auto-prompts. Tap SUB when you want a swap. App still tracks minutes and suggests who.'},
+  {key:'planned', icon:'clipboard',label:'Full control',  color:'#a78bfa', stance:'I plan every sub before kickoff.',       desc:"Auto-generates a fair plan you can tweak — or snap a photo of your notebook and we'll digitise it."}
 ];
 function renderSubStratPicker(){
   const g=document.getElementById('subStratGrid');
@@ -2205,12 +2235,226 @@ function renderSubStratPicker(){
     c.className='chip'+(cur===s.key?' sel':'');
     const isSel=cur===s.key;
     c.style.cssText='display:block;width:100%;text-align:left;padding:10px 12px;cursor:pointer;border-color:'+(isSel?s.color:'#333');
-    c.innerHTML=`<div style="font-weight:800;font-size:13px;color:${isSel?s.color:'#bbb'};margin-bottom:2px;display:flex;align-items:center;gap:6px">${ic(s.icon,13,isSel?s.color:'#bbb')}${s.label}</div>
+    c.innerHTML=`<div style="font-weight:800;font-size:13px;color:${isSel?s.color:'#bbb'};margin-bottom:3px;display:flex;align-items:center;gap:6px">${ic(s.icon,13,isSel?s.color:'#bbb')}${s.label}</div>
+      <div style="font-size:11px;color:${isSel?'#bbb':'#888'};font-weight:600;font-style:italic;margin-bottom:3px">${s.stance}</div>
       <div style="font-size:11px;color:#888;font-weight:500;line-height:1.4">${s.desc}</div>`;
-    c.onclick=()=>{cfg.subStrategy=s.key;renderSubStratPicker();};
+    c.onclick=()=>{cfg.subStrategy=s.key;renderSubStratPicker();renderGamePlanPanel();};
     g.appendChild(c);
   });
   _li();
+}
+
+// ===== GAME PLAN (Full Control strategy) =====
+// generateAutoPlan: simulate the whole game using Equal-time fairness +
+// position-tag matching to produce a structured plan of every swap. Coach
+// can then tweak individual events or replace the lot with a photo import.
+function generateAutoPlan(){
+  const fmt=FORMATS[curFmt];
+  const sport=getSportFromFormatKey(curFmt);
+  const onF=Math.min(fmt.onField,avail.length);
+  if(avail.length===0||onF===0||avail.length<=onF)return {events:[],issues:avail.length<=onF?['Add more players than on-field count to enable subs']:[]};
+  // Sub schedule (whole-game continuous, same logic as subTs)
+  const subTimesGame=[];
+  const totalPeriods=sport.periodCount||2;
+  for(let t=cfg.sf;t<cfg.hm*totalPeriods;t+=cfg.sf){
+    if(t%cfg.hm===0)continue; // skip exact period boundary (handled by halftime)
+    subTimesGame.push(t);
+  }
+  // Start lineup (use luOrd if it's been built, else first N from avail)
+  const start=(luOrd&&luOrd.length>=onF)?luOrd.slice(0,onF):avail.map((_,i)=>i).slice(0,onF);
+  let simOn=[...start];
+  let simBench=avail.map((_,i)=>i).filter(i=>!simOn.includes(i));
+  const simPt=Object.fromEntries(avail.map((_,i)=>[i,0]));
+  const gkIdx=fmt.hasGk?(gk1!==null?gk1:start[0]):null;
+  const events=[];
+  let lastMin=0;
+  // Walk the timeline minute-by-minute crediting playing time + applying scheduled subs
+  for(let gameMin=1;gameMin<=cfg.hm*totalPeriods;gameMin++){
+    const elapsed=gameMin-lastMin;
+    simOn.forEach(p=>{simPt[p]+=elapsed;});
+    lastMin=gameMin;
+    // Halftime GK swap?
+    if(sport.key==='soccer'&&fmt.hasGk&&gameMin===cfg.hm&&gk1!==null&&gk2!==null&&gk1!==gk2){
+      events.push({type:'gk_swap',gameMin,off:gk1,on:gk2,half:1});
+      if(simBench.includes(gk2)){
+        simBench=simBench.filter(p=>p!==gk2);
+        simOn=simOn.filter(p=>p!==gk1);
+        simOn.unshift(gk2);
+        simBench.push(gk1);
+      }
+    }
+    if(subTimesGame.includes(gameMin)){
+      const c=Math.min(cfg.sc,simBench.length);
+      const elig=fmt.hasGk&&gkIdx!==null?simOn.filter(p=>p!==gkIdx&&p!==gk2):simOn.slice();
+      // Off: highest minutes first (equal time)
+      const off=[...elig].sort((a,b)=>simPt[b]-simPt[a]).slice(0,c);
+      // On: lowest minutes first
+      const on=[...simBench].sort((a,b)=>simPt[a]-simPt[b]).slice(0,c);
+      events.push({type:'sub',gameMin,off,on,half:gameMin>cfg.hm?2:1,timeInHalf:gameMin>cfg.hm?gameMin-cfg.hm:gameMin});
+      // Apply swap
+      for(let i=0;i<c;i++){
+        const oi=simOn.indexOf(off[i]);
+        if(oi>=0)simOn[oi]=on[i];
+      }
+      simBench=simBench.filter(p=>!on.includes(p));
+      simBench.push(...off);
+    }
+  }
+  return {events,start,issues:[]};
+}
+// Render the Game Plan panel inline in Settings when Full Control is selected
+function renderGamePlanPanel(){
+  const panel=document.getElementById('gamePlanPanel');
+  if(!panel)return;
+  if(cfg.subStrategy!=='planned'){panel.style.display='none';return;}
+  panel.style.display='';
+  // Generate or refresh the plan
+  if(!cfg.subPlan||cfg.subPlanStale)cfg.subPlan=generateAutoPlan();
+  cfg.subPlanStale=false;
+  const tl=document.getElementById('planTimeline');
+  tl.innerHTML='';
+  const plan=cfg.subPlan;
+  if(plan.issues&&plan.issues.length){
+    tl.innerHTML=`<div style="font-size:12px;color:#e94560;padding:8px;text-align:center">${plan.issues.join(' · ')}</div>`;
+    _li();return;
+  }
+  // Starting lineup row
+  const startRow=document.createElement('div');
+  startRow.style.cssText='padding:8px 10px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;font-size:12px';
+  startRow.innerHTML=`<div style="font-size:10px;font-weight:800;color:#888;letter-spacing:1px;margin-bottom:4px">START · 0:00</div>
+    <div style="color:#bbb;line-height:1.5">${plan.start.map(i=>fn(avail[i])).join(' · ')}</div>`;
+  tl.appendChild(startRow);
+  // Sub events
+  plan.events.forEach((ev,evIdx)=>{
+    const row=document.createElement('div');
+    row.style.cssText='padding:8px 10px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;font-size:12px;cursor:pointer';
+    const min=ev.timeInHalf||ev.gameMin;
+    const halfLbl=ev.half===1?'H1':'H2';
+    if(ev.type==='gk_swap'){
+      row.innerHTML=`<div style="font-size:10px;font-weight:800;color:#e94560;letter-spacing:1px;margin-bottom:4px">HALFTIME GK SWAP</div>
+        <div style="color:#e94560;line-height:1.5">GK ${fn(avail[ev.off])} → GK ${fn(avail[ev.on])}</div>`;
+    } else {
+      const offHtml=ev.off.map(i=>`<span style="color:#f0a500">${fn(avail[i])}</span>`).join(', ');
+      const onHtml=ev.on.map(i=>`<span style="color:#00d4aa">${fn(avail[i])}</span>`).join(', ');
+      row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:10px;font-weight:800;color:#888;letter-spacing:1px">${halfLbl} · ${min}:00</span>
+          <span style="font-size:10px;color:#a78bfa;font-weight:700">tap to edit</span>
+        </div>
+        <div style="line-height:1.5">${offHtml} <span style="color:#444">→</span> ${onHtml}</div>`;
+      row.onclick=()=>openPlanSwapEditor(evIdx);
+    }
+    tl.appendChild(row);
+  });
+  _li();
+}
+// Tap-to-edit a single planned swap. Lets coach pick a different player for
+// any off slot (from on-field at that moment) or on slot (from bench).
+function openPlanSwapEditor(evIdx){
+  const ev=cfg.subPlan&&cfg.subPlan.events[evIdx];
+  if(!ev||ev.type!=='sub')return;
+  // Compute who's on field + on bench at that moment by walking the plan up to ev
+  let simOn=[...cfg.subPlan.start];
+  let simBench=avail.map((_,i)=>i).filter(i=>!simOn.includes(i));
+  for(let i=0;i<evIdx;i++){
+    const e=cfg.subPlan.events[i];
+    if(e.type==='sub'){
+      e.off.forEach((p,idx)=>{
+        const oi=simOn.indexOf(p);
+        if(oi>=0)simOn[oi]=e.on[idx];
+      });
+      simBench=simBench.filter(p=>!e.on.includes(p));
+      simBench.push(...e.off);
+    } else if(e.type==='gk_swap'){
+      if(simBench.includes(e.on)){simBench=simBench.filter(p=>p!==e.on);simOn=simOn.filter(p=>p!==e.off);simOn.unshift(e.on);simBench.push(e.off);}
+    }
+  }
+  const buildList=(label,curIdx,candidates,onPick)=>{
+    return `<div style="margin-bottom:10px"><div style="font-size:11px;color:#888;font-weight:700;margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase">${label}</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px">${candidates.map(c=>`<button onclick="${onPick}(${c})" style="padding:8px;border:1px solid ${c===curIdx?'#00d4aa':'#2a3550'};background:${c===curIdx?'rgba(0,212,170,.15)':'transparent'};color:${c===curIdx?'#00d4aa':'#bbb'};border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">${fn(avail[c])}</button>`).join('')}</div></div>`;
+  };
+  const overlay=document.getElementById('planEditOv');
+  const body=document.getElementById('planEditBody');
+  body.innerHTML='';
+  const min=ev.timeInHalf||ev.gameMin;
+  const halfLbl=ev.half===1?'H1':'H2';
+  body.innerHTML=`<h2 style="margin-bottom:4px;text-align:center">Edit Swap · ${halfLbl} ${min}:00</h2>
+    <div style="text-align:center;font-size:12px;color:#888;margin-bottom:14px">Pick replacements for this sub event. Other swaps stay the same.</div>`;
+  ev.off.forEach((curOff,slot)=>{
+    const candidates=simOn.filter(p=>!ev.off.includes(p)||p===curOff);
+    body.innerHTML+=buildList(`Off slot ${slot+1} (currently ${fn(avail[curOff])})`,curOff,candidates,`_planPickOff${slot}`);
+    window['_planPickOff'+slot]=(pIdx)=>{ev.off[slot]=pIdx;cfg.subPlanStale=true;closePlanEdit();renderGamePlanPanel();};
+  });
+  ev.on.forEach((curOn,slot)=>{
+    const candidates=simBench.filter(p=>!ev.on.includes(p)||p===curOn);
+    body.innerHTML+=buildList(`On slot ${slot+1} (currently ${fn(avail[curOn])})`,curOn,candidates,`_planPickOn${slot}`);
+    window['_planPickOn'+slot]=(pIdx)=>{ev.on[slot]=pIdx;cfg.subPlanStale=true;closePlanEdit();renderGamePlanPanel();};
+  });
+  body.innerHTML+=`<button class="btn btn-o" onclick="closePlanEdit()" style="margin-top:6px">Cancel</button>`;
+  overlay.classList.add('show');
+}
+function closePlanEdit(){document.getElementById('planEditOv').classList.remove('show');}
+// Auto-plan should regenerate when inputs change
+function markPlanStale(){cfg.subPlanStale=true;if(cfg.subStrategy==='planned')renderGamePlanPanel();}
+// === Photo import: snap a handwritten plan, AI extracts, populate cfg.subPlan ===
+async function handlePlanPhoto(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  if(!sb){setPlanPhotoStatus('Sign in first to use photo import.','err');input.value='';return;}
+  setPlanPhotoStatus("Compressing photo…",'pending');
+  try{
+    const dataUrl=await compressImageForUpload(file,1024,0.75);
+    setPlanPhotoStatus("Reading your plan…",'pending');
+    const{data,error}=await sb.functions.invoke('extract-roster',{body:{imageBase64:dataUrl,mode:'plan',roster:avail}});
+    if(error){
+      let msg=error.message||'extract failed';
+      try{
+        if(error.context&&typeof error.context.json==='function'){
+          const bj=await error.context.json();
+          if(bj&&bj.error)msg=bj.error;
+        }
+      }catch{}
+      setPlanPhotoStatus('Couldn’t read this — '+msg,'err');return;
+    }
+    if(!data||!Array.isArray(data.events)){setPlanPhotoStatus('No swaps detected. Try a clearer photo or edit on screen.','err');return;}
+    const matchedEvents=data.events.map(ev=>({
+      type:ev.type||'sub',
+      gameMin:ev.gameMin||0,
+      half:ev.half||1,
+      timeInHalf:ev.timeInHalf||ev.gameMin,
+      off:(ev.off||[]).map(n=>matchPlayer(n)).filter(i=>i!==null),
+      on:(ev.on||[]).map(n=>matchPlayer(n)).filter(i=>i!==null)
+    })).filter(ev=>ev.off.length&&ev.on.length);
+    const start=(data.start||[]).map(n=>matchPlayer(n)).filter(i=>i!==null);
+    cfg.subPlan={events:matchedEvents,start:start.length?start:(luOrd||avail.map((_,i)=>i)).slice(0,FORMATS[curFmt].onField),issues:[]};
+    cfg.subPlanStale=false;
+    setPlanPhotoStatus(`Imported ${matchedEvents.length} swap${matchedEvents.length===1?'':'s'}. Review and tweak below.`,'ok');
+    renderGamePlanPanel();
+  }catch(e){console.warn('plan photo',e);setPlanPhotoStatus('Couldn’t process that photo.','err');}
+  input.value='';
+}
+function setPlanPhotoStatus(msg,mode){
+  const el=document.getElementById('planPhotoStatus');
+  if(!el)return;
+  if(!msg){el.style.display='none';return;}
+  const colors={pending:'rgba(91,192,222,.15);color:#5bc0de',ok:'rgba(0,212,170,.15);color:#00d4aa',err:'rgba(233,69,96,.15);color:#e94560'};
+  el.style.cssText='display:block;margin-bottom:8px;font-size:12px;padding:8px 10px;border-radius:6px;font-weight:600;background:'+(colors[mode]||colors.pending);
+  el.textContent=msg;
+}
+// Fuzzy match a handwritten name to the roster (case-insensitive, first-name + last-initial)
+function matchPlayer(name){
+  if(!name)return null;
+  const n=name.toLowerCase().trim();
+  // Exact match first
+  let i=avail.findIndex(p=>p.toLowerCase().trim()===n);
+  if(i>=0)return i;
+  // Starts-with on first token
+  const first=n.split(/\s+/)[0];
+  i=avail.findIndex(p=>p.toLowerCase().split(/\s+/)[0]===first);
+  if(i>=0)return i;
+  // First few letters
+  i=avail.findIndex(p=>p.toLowerCase().startsWith(n.slice(0,Math.max(3,n.length))));
+  if(i>=0)return i;
+  return null;
 }
 
 // ===== S2: SETTINGS =====
@@ -2220,6 +2464,8 @@ function adj(k,d){
   if(k==='sc') cfg.sc=Math.max(1,Math.min(4,cfg.sc+d));
   document.getElementById(k+'V').textContent=cfg[k];
   updPrev();
+  // Plan inputs changed — regenerate on next render
+  if(cfg.subStrategy==='planned'){cfg.subPlanStale=true;renderGamePlanPanel();}
 }
 function updPrev(){
   const ts=[];for(let t=cfg.sf;t<cfg.hm;t+=cfg.sf)ts.push(t);
@@ -2605,6 +2851,7 @@ function startGame(){
     gk:fmt.hasGk?gk1:null,pt:{},sd:[],ps:null,scoreUs:0,scoreThem:0,
     pairs:rotPairs.map(p=>({on:[...p.on]})),pairIdx:0,oppFormation:curFormation,
     subStrategy:cfg.subStrategy||'fair', // chosen on the Settings screen
+    subPlan:(cfg.subStrategy==='planned'&&cfg.subPlan)?JSON.parse(JSON.stringify(cfg.subPlan)):null,
     log:[{type:'sub_strategy',time:0,strategy:cfg.subStrategy||'fair'}],
     startTime:new Date().toISOString()};
   avail.forEach(n=>G.pt[n]=0);
@@ -2848,7 +3095,31 @@ function trigSub(){
   if(!G.bench.length)return;
   let off=[],on=[];
   const strat=G.subStrategy||'paired';
-  if(strat==='fair'){
+  if(strat==='planned'&&G.subPlan&&G.subPlan.events){
+    // Full Control: use the pre-planned swap for the current half + time.
+    // Match the closest planned event whose timeInHalf equals current half's
+    // sub-time minutes (allowing for player presence on field / bench).
+    const curMin=Math.floor(G.secs/60);
+    const planned=G.subPlan.events.find(ev=>ev.half===G.half&&ev.timeInHalf===curMin&&ev.type==='sub');
+    if(planned){
+      // Validate the planned off players are on field + on players are on bench
+      off=planned.off.filter(p=>G.on.includes(p)&&p!==G.gk);
+      on=planned.on.filter(p=>G.bench.includes(p));
+      // If plan is partially unusable (e.g. player got swapped earlier mid-game), fall back to fair
+      if(off.length===0||on.length===0){
+        const c=Math.min(cfg.sc,G.bench.length);
+        const elig=G.gk!==null?G.on.filter(p=>p!==G.gk):G.on.slice();
+        off=[...elig].sort((a,b)=>(G.pt[avail[b]]||0)-(G.pt[avail[a]]||0)).slice(0,c);
+        on=[...G.bench].sort((a,b)=>(G.pt[avail[a]]||0)-(G.pt[avail[b]]||0)).slice(0,c);
+      }
+    } else {
+      // No planned event at this time — coach hit SUB manually outside the plan
+      const c=Math.min(cfg.sc,G.bench.length);
+      const elig=G.gk!==null?G.on.filter(p=>p!==G.gk):G.on.slice();
+      off=[...elig].sort((a,b)=>(G.pt[avail[b]]||0)-(G.pt[avail[a]]||0)).slice(0,c);
+      on=[...G.bench].sort((a,b)=>(G.pt[avail[a]]||0)-(G.pt[avail[b]]||0)).slice(0,c);
+    }
+  } else if(strat==='fair'){
     // Equal-time: pick the on-field player(s) with the most playing time to come off,
     // and the bench player(s) with the least playing time to come on.
     const c=Math.min(cfg.sc,G.bench.length);

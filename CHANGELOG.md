@@ -4,6 +4,23 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v1.8-beta — Full Control mode + Game Plan view
+
+- 📋 **New "Full control" sub strategy** — coach plans every sub before kickoff
+- 🪄 **Auto-suggested plan** using Equal-time fairness — coach starts with a sensible default rather than a blank slate
+- ✏️ **Tap any swap to override** — modal picks alternate off/on players from those on field / bench at that moment
+- 📷 **Snap a photo of your handwritten plan** — `extract-roster` edge function extended with a `plan` mode that returns structured `{start, events, gk}` JSON. Fuzzy-matches handwritten names to the roster.
+- 🧠 **Strategy descriptions lead with the coach archetype** — stance lines ("I just want everyone to play", "Keep my pairs together", "I'll call them as I see them", "I plan every sub before kickoff") above the algorithm description
+- ⚙️ At runtime, `trigSub` honours the plan's off/on for the current half + time; falls back to Equal-time logic when no planned event matches (e.g. mid-cycle manual SUB)
+- ☁️ Plan is copied from `cfg.subPlan` to `G.subPlan` at game start and snapshotted with the active-game save
+
+### Architecture notes
+- `generateAutoPlan()` simulates whole-game timeline minute-by-minute crediting minutes, picking highest-min on-field to come off and lowest-min benched to come on at each scheduled sub time
+- Edge function `extract-roster` accepts `mode: 'plan'` with optional `roster` hint for name matching; `high` image detail used in plan mode for handwriting recognition
+- Plan stale flag (`cfg.subPlanStale`) triggers regeneration when Sub Strategy or interval settings change
+
+---
+
 ## v1.7-beta — Jersey numbers
 
 - 🔢 **Per-player jersey number** — small input on each row in the team editor (all sports)
