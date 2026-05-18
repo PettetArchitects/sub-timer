@@ -617,6 +617,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   </div>
 </div>
 
+<!-- Bulk position-tag picker — opens when a position chip in the editor hint is tapped -->
+<div class="ov" id="bulkTagOv">
+  <div class="ab" style="max-width:380px;max-height:80vh;overflow-y:auto;text-align:left">
+    <h2 id="bulkTagTitle" style="text-align:center;margin-bottom:6px">Assign Position</h2>
+    <div style="font-size:12px;color:#888;margin-bottom:14px;text-align:center">Tick the players who play this position. Untick to remove.</div>
+    <div id="bulkTagList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-o" onclick="closeBulkTag()" style="flex:1;margin-top:0">Cancel</button>
+      <button class="btn btn-g" onclick="applyBulkTag()" style="flex:2;margin-top:0">Apply</button>
+    </div>
+  </div>
+</div>
 <!-- Game Plan swap editor — opens when a planned sub event is tapped -->
 <div class="ov" id="planEditOv">
   <div class="ab" style="max-width:380px;max-height:80vh;overflow-y:auto;text-align:left">
@@ -1178,6 +1190,58 @@ function countDirtyNames(){
   let n=0;
   editingTeam.players.forEach(p=>{const r=stripTrailingPosition(p,null);if(r.name!==(p||'').trim())n++;});
   return n;
+}
+// Bulk position tagging — one sheet to assign / un-assign a position across
+// every player at once. Faster than tag-by-tag for big squads.
+let _bulkTagCurrent=null;
+function openBulkTag(tagName){
+  if(!editingTeam||!editingTeam.players)return;
+  _bulkTagCurrent=tagName;
+  document.getElementById('bulkTagTitle').innerHTML=`<span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">${ic('zap',18,'#00d4aa')}<span>Assign <span class="pos-tag pos-tag-${tagName.toLowerCase()}" style="font-size:14px;padding:2px 8px">${tagName}</span></span></span>`;
+  const list=document.getElementById('bulkTagList');
+  list.innerHTML='';
+  // De-dupe: skip empty names and treat each unique player name once
+  const seen=new Set();
+  editingTeam.players.forEach((p,i)=>{
+    const name=(p||'').trim();
+    if(!name||seen.has(name))return;
+    seen.add(name);
+    const checked=getPlayerPos(editingTeam,name).includes(tagName);
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;background:#0a1628;border:1.5px solid '+(checked?'#00d4aa':'#1e2a45')+';border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:'+(checked?'#00d4aa':'#bbb')+';transition:all .15s';
+    row.innerHTML=`<input type="checkbox" data-name="${name.replace(/"/g,'&quot;')}" ${checked?'checked':''} style="width:18px;height:18px;accent-color:#00d4aa;flex-shrink:0;cursor:pointer">
+      <span style="flex:1">${fn(name)}</span>
+      ${(()=>{const cur=getPlayerPos(editingTeam,name).filter(t=>t!==tagName);return cur.length?`<span style="font-size:10px;color:#666;font-weight:600">also: ${cur.join(', ')}</span>`:'';})()}`;
+    // Live-update the row border / colour when ticked
+    row.querySelector('input').addEventListener('change',e=>{
+      const on=e.target.checked;
+      row.style.borderColor=on?'#00d4aa':'#1e2a45';
+      row.style.color=on?'#00d4aa':'#bbb';
+    });
+    list.appendChild(row);
+  });
+  document.getElementById('bulkTagOv').classList.add('show');
+  _li();
+}
+function closeBulkTag(){
+  document.getElementById('bulkTagOv').classList.remove('show');
+  _bulkTagCurrent=null;
+}
+function applyBulkTag(){
+  if(!_bulkTagCurrent||!editingTeam)return;
+  const tag=_bulkTagCurrent;
+  const checks=document.querySelectorAll('#bulkTagList input[type="checkbox"]');
+  let added=0, removed=0;
+  checks.forEach(cb=>{
+    const name=cb.getAttribute('data-name');
+    if(!name)return;
+    const cur=getPlayerPos(editingTeam,name);
+    const has=cur.includes(tag);
+    if(cb.checked&&!has){setPlayerPos(editingTeam,name,[...cur,tag]);added++;}
+    else if(!cb.checked&&has){setPlayerPos(editingTeam,name,cur.filter(t=>t!==tag));removed++;}
+  });
+  closeBulkTag();
+  renderEditTeam();
 }
 // Translate a handwritten position abbreviation (D / CD / LB / RM / S / etc.)
 // to our internal {tag, side} model. C-prefix means centre (side='B'); L/R
@@ -1810,10 +1874,12 @@ function renderEditTeam(){
   const hint=document.getElementById('posTagsHint');
   if(hint){
     const types=getPosTypes(editingTeam);
-    const chips=types.map(pt=>`<span class="pos-tag pos-tag-${pt.toLowerCase()}" style="font-size:11px;padding:1px 6px;cursor:default">${pt}</span>`).join(' ');
-    hint.innerHTML=`<div style="font-weight:700;color:#00d4aa;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${ic('zap',12,'#00d4aa')} Set position tags</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:6px">Tap ${chips}</div>
-      under each name. The app uses these to swap players into positions they actually play. Multiple tags = versatile.`;
+    // Each chip is now a "bulk tag" button — tap to assign that position to
+    // multiple players in one sheet, instead of toggling per-player rows.
+    const chips=types.map(pt=>`<span class="pos-tag pos-tag-${pt.toLowerCase()}" onclick="openBulkTag('${pt}')" style="font-size:11px;padding:2px 8px;cursor:pointer">${pt}</span>`).join(' ');
+    hint.innerHTML=`<div style="font-weight:700;color:#00d4aa;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${ic('zap',12,'#00d4aa')} Bulk-tag positions</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px"><strong style="color:#5bc0de">Tap a position</strong> ${chips}</div>
+      to pick which players get it — faster than going row-by-row. Or use the chips under each player below.`;
   }
   // Name-cleanup banner — only shown when at least one player has a
   // trailing position-like token in their name (usually from a slightly
