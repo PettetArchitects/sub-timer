@@ -159,7 +159,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 /* Diagrammatic pitch — FIFA-style perspective tilt to reclaim vertical
    space and give a broadcast feel. Cards counter-rotate so text stays
    readable; the pitch markings recede into the distance. */
-.lu-pitch{position:relative;width:100%;max-width:none;margin:0 auto;aspect-ratio:3/2.2;max-height:50vh;background:linear-gradient(to top,rgba(120,180,140,.06),rgba(120,180,140,.01));border-radius:8px;border:1.5px solid rgba(255,255,255,.35);overflow:hidden;transform:perspective(1400px) rotateX(10deg);transform-origin:center 50%}
+.lu-pitch{position:relative;width:100%;max-width:none;margin:0 auto;aspect-ratio:3/2.1;max-height:55vh;background:linear-gradient(to top,rgba(120,180,140,.22),rgba(120,180,140,.06) 60%,rgba(0,0,0,.18));overflow:visible;clip-path:polygon(14% 0,86% 0,100% 100%,0 100%);border:none;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.25);border-radius:0}
 .lu-pitch .pitch-lines,.lu-pitch .pitch-center,.lu-pitch .pitch-box-top,.lu-pitch .pitch-box-bot,.lu-pitch .pitch-goal-top,.lu-pitch .pitch-goal-bot{pointer-events:none}
 /* Silhouette + jersey overlay inside the player card */
 .fc-silhouette{width:28px;height:28px;color:rgba(255,255,255,.5);stroke-width:1.5}
@@ -171,8 +171,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .fc-mins{color:#555;font-size:10px;font-weight:600}
 
 /* FIFA player card on pitch */
-.fc{position:absolute;transform:translate(-50%,-50%) rotateX(-10deg);z-index:2;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.fc:active{transform:translate(-50%,-50%) rotateX(-10deg) scale(.92)}
+.fc{position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.fc:active{transform:translate(-50%,-50%) scale(.92)}
 .fc-card{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
 @media(min-width:768px){.fc-card{width:60px;height:60px}}
 .fc-on .fc-card{background:rgba(0,212,170,.12);border:1.5px solid #00d4aa}
