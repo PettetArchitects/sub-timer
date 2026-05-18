@@ -559,6 +559,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <span id="oppFmtLbl" onclick="toggleOppFormation()" style="font-size:12px;color:#888;font-weight:700;letter-spacing:1px;cursor:pointer;padding:4px 10px;border:1px dashed #444;border-radius:12px;display:inline-block">OPP: ?</span>
     <span id="subStratLbl" onclick="changeSubStrategy()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:none">Subs</span>
     <span id="soundPackLbl" onclick="openSoundPicker()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:inline-block" title="Choose sub-alert sound">Sound</span>
+    <span id="editTeamMidGame" onclick="editTeamFromGame()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:inline-flex;align-items:center;gap:4px" title="Edit team (positions, jersey numbers, etc.) — returns to game"><i data-lucide="pencil" width="11" height="11" style="width:11px;height:11px;display:inline-flex"></i>Edit</span>
   </div>
   <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:0 12px 6px">
     <div id="gameFmtGrid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center"></div>
@@ -2131,6 +2132,14 @@ async function handleRosterPhoto(inputEl){
   }
 }
 
+// Set true when the team editor was opened from a running game so that
+// saveAndBack returns to the game screen (preserving G) rather than home.
+let _editingFromGame=false;
+function editTeamFromGame(){
+  if(!currentTeam)return;
+  _editingFromGame=true;
+  editTeamScreen(currentTeam.id);
+}
 function saveAndBack(){
   if(editingTeam){
     editingTeam.name=document.getElementById('teamNameInput').value.trim()||'Untitled Team';
@@ -2142,6 +2151,21 @@ function saveAndBack(){
     saveTeams(teams);
     if(cloudUser) pushCloudTeam(editingTeam);
     editingTeam=null;
+  }
+  if(_editingFromGame){
+    _editingFromGame=false;
+    // Refresh currentTeam from the saved teams array so the game screen
+    // sees the latest positions / numbers / sides / foots after a mid-game
+    // edit. avail (the per-match roster) intentionally stays as-is — adding
+    // a player mid-game shouldn't auto-join them to this match's lineup.
+    if(currentTeam){
+      const fresh=teams.find(t=>t.id===currentTeam.id);
+      if(fresh)currentTeam=fresh;
+    }
+    showScr('s4');
+    renderG();
+    saveActiveGame();
+    return;
   }
   renderHome();
   showScr('home');
@@ -2155,6 +2179,13 @@ function deleteTeam(){
   saveTeams(teams);
   if(cloudUser&&cloudIdToDelete) deleteCloudTeam(cloudIdToDelete);
   editingTeam=null;
+  // Deleting the team you're currently playing kills the active game too —
+  // bounce home and clear the editing-from-game flag.
+  _editingFromGame=false;
+  if(currentTeam&&!teams.find(t=>t.id===currentTeam.id)){
+    clearActiveGame();
+    G=null;
+  }
   renderHome();
   showScr('home');
 }
