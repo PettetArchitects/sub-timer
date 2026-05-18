@@ -156,13 +156,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .pair-player.pair-sel{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.3)}
 .pair-swap{font-size:16px;color:#666;flex-shrink:0}
 
-/* Diagrammatic pitch */
-.lu-pitch{position:relative;width:100%;max-width:none;margin:0 auto;aspect-ratio:3/4;background:transparent;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);overflow:hidden}
+/* Diagrammatic pitch — FIFA-style perspective tilt to reclaim vertical
+   space and give a broadcast feel. Cards counter-rotate so text stays
+   readable; the pitch markings recede into the distance. */
+.lu-pitch{position:relative;width:100%;max-width:none;margin:0 auto;aspect-ratio:3/2.2;max-height:50vh;background:linear-gradient(to top,rgba(120,180,140,.06),rgba(120,180,140,.01));border-radius:8px;border:1.5px solid rgba(255,255,255,.35);overflow:hidden;transform:perspective(1400px) rotateX(10deg);transform-origin:center 50%}
 .lu-pitch .pitch-lines,.lu-pitch .pitch-center,.lu-pitch .pitch-box-top,.lu-pitch .pitch-box-bot,.lu-pitch .pitch-goal-top,.lu-pitch .pitch-goal-bot{pointer-events:none}
+/* Silhouette + jersey overlay inside the player card */
+.fc-silhouette{width:28px;height:28px;color:rgba(255,255,255,.5);stroke-width:1.5}
+@media(min-width:768px){.fc-silhouette{width:32px;height:32px}}
+.fc-jersey{position:absolute;top:-4px;right:-4px;background:#0a1628;color:#5bc0de;border:1.5px solid #5bc0de;border-radius:10px;min-width:18px;height:18px;padding:0 4px;font-size:9px;font-weight:800;line-height:14px;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.fc-pos-chip{display:inline-block;font-size:9px;color:#888;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin-top:1px;padding:1px 5px;background:rgba(0,0,0,.4);border-radius:3px}
+.fc-on .fc-pos-chip{color:#00d4aa;background:rgba(0,212,170,.12)}
+.fc-gk .fc-pos-chip{color:#e94560;background:rgba(233,69,96,.12)}
+.fc-mins{color:#555;font-size:10px;font-weight:600}
 
 /* FIFA player card on pitch */
-.fc{position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.fc:active{transform:translate(-50%,-50%) scale(.92)}
+.fc{position:absolute;transform:translate(-50%,-50%) rotateX(-10deg);z-index:2;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.fc:active{transform:translate(-50%,-50%) rotateX(-10deg) scale(.92)}
 .fc-card{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
 @media(min-width:768px){.fc-card{width:60px;height:60px}}
 .fc-on .fc-card{background:rgba(0,212,170,.12);border:1.5px solid #00d4aa}
@@ -3886,7 +3896,7 @@ function renderRoster(){
   const pitch=document.createElement('div');
   const _gSport=getSport(currentTeam);
   pitch.className='lu-pitch'+(_gSport.key==='netball'?' np-netball':'');
-  pitch.style.cssText='width:100%;aspect-ratio:3/4;border-radius:6px';
+  pitch.style.cssText='width:100%;border-radius:6px';
   pitch.innerHTML=_gSport.key==='netball'
     ? `<div class="pitch-lines"></div><div class="nb-third nb-third-1"></div><div class="nb-third nb-third-2"></div><div class="nb-circle-top"></div><div class="nb-circle-bot"></div><div class="nb-centre-circle"></div>`
     : `<div class="pitch-lines"></div><div class="pitch-center" style="width:44px;height:44px"></div><div class="pitch-box-top"></div><div class="pitch-box-bot"></div><div class="pitch-goal-top"></div><div class="pitch-goal-bot"></div>`;
@@ -3906,8 +3916,8 @@ function renderRoster(){
     el.style.cssText=`left:${pos.x}%;top:${pos.y}%;position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center`;
     const subLine=isOff&&replacedBy!==null?`<div style="font-size:10px;font-weight:700;color:#00d4aa;margin-top:2px">↑ ${fn(avail[replacedBy])}</div>`:'';
     const jersey=currentTeam?getPlayerNumber(currentTeam,avail[pIdx]):'';
-    const jerseyHtml=jersey?`<span style="color:#5bc0de;font-weight:800;font-size:10px;margin-right:3px">#${jersey}</span>`:'';
-    el.innerHTML=`<div class="fc-card"><div class="fc-num" style="font-size:14px">${pos.label}</div></div><div class="fc-name">${jerseyHtml}${fn(avail[pIdx])} <span style="color:#555;font-size:10px">${mins}′</span></div>${subLine}`;
+    const jerseyBadge=jersey?`<div class="fc-jersey">${jersey}</div>`:'';
+    el.innerHTML=`<div class="fc-card"><svg class="fc-silhouette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>${jerseyBadge}</div><div class="fc-name">${fn(avail[pIdx])} <span class="fc-mins">${mins}′</span></div><div class="fc-pos-chip">${pos.label}</div>${subLine}`;
     if(!isGk && G.bench.length>0) el.onclick=()=>injurySub(pIdx);
     pitch.appendChild(el);
   });
