@@ -1451,6 +1451,26 @@ function _li(){
   setTimeout(()=>waitLucide((tries||0)+1),100);
 })(0);
 
+// Soccer pitch markings drawn as inline SVG so the goal boxes can taper in
+// perspective to match the trapezoidal pitch outline (clip-path on .lu-pitch).
+// preserveAspectRatio="none" lets the 100×100 viewBox stretch to fill any
+// container; vector-effect="non-scaling-stroke" keeps stroke width consistent.
+const SOCCER_PITCH_SVG=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible">
+  <!-- Top goal box (the wide one) — narrower at top, wider at bottom -->
+  <polygon vector-effect="non-scaling-stroke" points="35,0 65,0 67,16 33,16" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+  <!-- Top goal area (the small 6-yard) -->
+  <polygon vector-effect="non-scaling-stroke" points="43,0 57,0 58,6 42,6" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="1.2"/>
+  <!-- Bottom goal box — wider at bottom (closer), narrower at top -->
+  <polygon vector-effect="non-scaling-stroke" points="33,84 67,84 70,100 30,100" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+  <!-- Bottom goal area -->
+  <polygon vector-effect="non-scaling-stroke" points="42,94 58,94 59,100 41,100" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="1.2"/>
+  <!-- Centre line — spans only the pitch width at y=50% (matches trapezoid taper) -->
+  <line vector-effect="non-scaling-stroke" x1="7" y1="50" x2="93" y2="50" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <!-- Centre circle as ellipse to look right in perspective -->
+  <ellipse vector-effect="non-scaling-stroke" cx="50" cy="50" rx="9" ry="3.5" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <circle cx="50" cy="50" r="0.6" fill="rgba(255,255,255,.4)"/>
+</svg>`;
+
 const SOUND_PACKS={
   classic:{label:'Classic',icon:'activity',desc:'Quick beeps',
     sub:(c,t)=>{[0,0.3,0.6].forEach(o=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='square';s.frequency.setValueAtTime(880,t+o);g.gain.setValueAtTime(0.2,t+o);g.gain.setValueAtTime(0.2,t+o+0.12);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.15);s.start(t+o);s.stop(t+o+0.18);});},
@@ -2953,16 +2973,7 @@ function renderLineupPitch(){
   pitch.style.cssText='aspect-ratio:auto;width:100%;max-width:none;height:100%';
   pitch.innerHTML=_luSport.key==='netball'
     ? `<div class="pitch-lines"></div><div class="nb-third nb-third-1"></div><div class="nb-third nb-third-2"></div><div class="nb-circle-top"></div><div class="nb-circle-bot"></div><div class="nb-centre-circle"></div>`
-    : `
-    <div class="pitch-lines"></div>
-    <div class="pitch-center"></div>
-    <div class="pitch-box-top"></div>
-    <div class="pitch-box-bot"></div>
-    <div class="pitch-goal-top"></div>
-    <div class="pitch-goal-bot"></div>
-    <div class="pitch-goal-top"></div>
-    <div class="pitch-goal-bot"></div>
-  `;
+    : SOCCER_PITCH_SVG;
 
   // Build on-field player cards
   if(fmt.hasGk && gk1!==null){
@@ -3996,7 +4007,7 @@ function renderRoster(){
   pitch.style.cssText='width:100%;border-radius:6px';
   pitch.innerHTML=_gSport.key==='netball'
     ? `<div class="pitch-lines"></div><div class="nb-third nb-third-1"></div><div class="nb-third nb-third-2"></div><div class="nb-circle-top"></div><div class="nb-circle-bot"></div><div class="nb-centre-circle"></div>`
-    : `<div class="pitch-lines"></div><div class="pitch-center" style="width:44px;height:44px"></div><div class="pitch-box-top"></div><div class="pitch-box-bot"></div><div class="pitch-goal-top"></div><div class="pitch-goal-bot"></div>`;
+    : SOCCER_PITCH_SVG;
 
   playerSlots.forEach(({pos,pIdx,isGk})=>{
     const isOff=nextOff.has(pIdx);
