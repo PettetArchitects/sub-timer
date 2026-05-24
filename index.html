@@ -622,16 +622,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <!-- Formation / strategy / sound pills + the contextual tap-tip — one combined
        band just above the bench. Tapping a pill opens its picker below. -->
   <div id="fmtRow" style="flex-shrink:0;padding:4px 12px 0;display:flex;justify-content:center;gap:6px 8px;align-items:center;flex-wrap:wrap">
-    <span id="fmtLbl" onclick="toggleGameFormation()" style="font-size:12px;color:#888;font-weight:700;letter-spacing:1px;cursor:pointer;padding:4px 10px;border:1px solid #333;border-radius:12px;display:inline-block"></span>
-    <span id="fmtVs" style="font-size:10px;color:#444">vs</span>
+    <!-- Our formation moved to the bottom control bar (Formation button). -->
     <span id="oppFmtLbl" onclick="toggleOppFormation()" style="font-size:12px;color:#888;font-weight:700;letter-spacing:1px;cursor:pointer;padding:4px 10px;border:1px dashed #444;border-radius:12px;display:inline-block">OPP: ?</span>
     <span id="subStratLbl" onclick="changeSubStrategy()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:none">Subs</span>
     <!-- Sound pack moved to app Settings (home gear). -->
     <!-- Contextual tip — rendered inline here by renderRoster (no longer a banner). -->
     <span id="modeHint" style="display:inline-flex;align-items:center"></span>
-  </div>
-  <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:4px 12px 6px">
-    <div id="gameFmtGrid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center"></div>
   </div>
   <div id="oppFmtPicker" style="display:none;flex-shrink:0;padding:4px 12px 6px">
     <div id="oppFmtGrid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center"></div>
@@ -651,9 +647,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
        START / SUB are colour-emphasised; Swap / Injury / Edit Players / Undo
        follow as soft-UI nav items. One unified row (gameDash id kept so
        renderGameDash still finds it). -->
+  <!-- Formation picker — opens just above the control bar, next to the Formation button. -->
+  <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:6px 12px;border-top:1px solid #243049;background:#10162a">
+    <div id="gameFmtGrid" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
+  </div>
   <div id="gameDash" style="display:flex;gap:6px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));flex-shrink:0;border-top:1px solid #243049;background:linear-gradient(180deg,#141a2e,#0f1422)">
     <button class="gd-btn gd-go" id="ppB" onclick="tog()"></button>
     <button class="gd-btn gd-sub" id="subB" onclick="manualSub()"></button>
+    <button class="gd-btn" id="gdFormation" onclick="toggleGameFormation()"></button>
     <button class="gd-btn" id="gdSwap" onclick="setGameMode('swap')"></button>
     <button class="gd-btn" id="gdInjury" onclick="setGameMode('injury')"></button>
     <button class="gd-btn" id="gdEdit" onclick="editTeamFromGame()"></button>
@@ -1828,12 +1829,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.11.2-beta';
+const APP_VERSION='v1.11.3-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.11.3-beta':{
+    title:'Formation button',
+    items:[
+      'Formation is now a button in the bottom control bar showing the current shape (e.g. "2-3-1") — tap to change',
+      'The picker opens just above the bar; removed the small formation pill from the chrome row'
+    ]
+  },
   'v1.11.2-beta':{
     title:'2nd-half line-up ready',
     items:[
@@ -3649,14 +3657,9 @@ function renderG(){
     subBtn.style.opacity=canSub?'1':'0.4';
   }
 
-  // Formation label — hide for netball where formation is fixed
+  // (Our formation now shows on the bottom-bar Formation button — see renderGameDash.)
   const _curSport=getSport(currentTeam);
   const isNetball=_curSport.key==='netball';
-  const fl=document.getElementById('fmtLbl');
-  if(fl){
-    fl.textContent=curFormation;
-    fl.style.display=isNetball?'none':'';
-  }
   // Sub strategy badge — visible chip on game screen showing current rule + lets coach change it
   const sslbl=document.getElementById('subStratLbl');
   if(sslbl){
@@ -3674,8 +3677,6 @@ function renderG(){
       sslbl.style.display='none';
     }
   }
-  const fvs=document.getElementById('fmtVs');
-  if(fvs)fvs.style.display=isNetball?'none':'';
   const ofl=document.getElementById('oppFmtLbl');
   if(ofl){
     if(isNetball){
@@ -3964,6 +3965,7 @@ function toggleGameFormation(){
   } else {
     p.style.display='none';
   }
+  renderGameDash(); // reflect open/closed state on the Formation button
 }
 function toggleOppFormation(){
   const p=document.getElementById('oppFmtPicker');
@@ -4084,6 +4086,19 @@ function renderGameDash(){
   // state is managed in renderG(); here we just paint the content once.
   const subB=document.getElementById('subB');
   if(subB && !subB.querySelector('span')){ subB.innerHTML=`${ic('refresh',21)}<span>SUB</span>`; }
+  // Formation button — shows the current formation; opens the picker. Hidden for
+  // netball (fixed positions). 'active' while the picker is open.
+  const gf=document.getElementById('gdFormation');
+  if(gf){
+    const isNb=getSport(currentTeam).key==='netball';
+    if(isNb){ gf.style.display='none'; }
+    else{
+      gf.style.display='';
+      const open=document.getElementById('gameFmtPicker')&&document.getElementById('gameFmtPicker').style.display!=='none';
+      gf.className='gd-btn'+(open?' active':'');
+      gf.innerHTML=`${ic('layout-grid',17)}<span>${curFormation||'Formation'}</span>`;
+    }
+  }
   [['gdSwap','swap','move','Swap'],['gdInjury','injury','bandage','Injury']]
     .forEach(([id,mode,icon,label])=>{
       const el=document.getElementById(id);
