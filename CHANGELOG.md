@@ -4,6 +4,17 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v2.0.1-beta — Sample squad + AFL isometric pitch
+
+- 👥 **Fill a sample squad** — a button in the team editor drops in a generic roster sized to the format (on-field + ~30% bench) with names, jersey numbers and a spread of position tags, so a brand-new team can start a game and try the app immediately. Won't overwrite real players (tops up to a playable count); names a still-unnamed team automatically.
+- 🏉 **AFL oval is now isometric** — rendered as a foreshortened (tilted-back) ground rather than flat top-down, matching the cabinet-projection look from the design prototype. Achieved by foreshortening the oval's box vertically (`.lu-pitch.np-afl` aspect 135/140 ≈ 165 m length × sin 58°) — a uniform squash (no "egg"); markings and %-positioned tokens foreshorten together while shirts stay upright.
+
+### Architecture notes
+- `fillSampleSquad()` + `SAMPLE_NAMES`; button `#sampleSquadBtn` under the photo-import in the team editor. Appends unique generic players (with `numbers` + cycled non-GK `positions`) up to `onField + round(onField*0.3)`.
+- AFL pitch kept top-down in `aflPitchSvg()`; the isometric foreshortening is the box aspect-ratio (135/140) so tokens (positioned by %) and SVG markings (preserveAspectRatio=none) squash uniformly — same visual result as the prototype's cabinet projection, far simpler than baking the tilt into every coordinate.
+
+---
+
 ## v2.0-beta — AFL mode
 
 Australian Rules Football is now a third sport, alongside Soccer and Netball. Shipped but unannounced.

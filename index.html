@@ -203,7 +203,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    the aspect ratio (the classic "fit aspect box in a flex cell" trick). */
 .pitch-flex{flex:1 1 0;min-height:0;position:relative}
 .lu-pitch{position:absolute;inset:0;margin:auto;aspect-ratio:105/80;max-width:100%;max-height:100%;background:transparent;border:none;overflow:visible;perspective:1500px;perspective-origin:50% 100%}
-.lu-pitch.np-afl{aspect-ratio:135/165}  /* AFL oval — portrait field proportions (135m wide × 165m long) */
+/* AFL oval — isometric view: the 165 m length is foreshortened (≈ sin 58° of a
+   tilted-back ground) so the oval reads as a 3D ground viewed at an angle, not
+   flat top-down. Uniform vertical squash = cabinet projection (no "egg"); the
+   SVG markings and the %-positioned player tokens both foreshorten with it
+   while the shirts stay upright. 135 / (165·0.85) ≈ 135/140. */
+.lu-pitch.np-afl{aspect-ratio:135/140}
 .lu-plane{position:absolute;left:0;right:0;bottom:0;height:240%;transform-origin:50% 100%;transform:rotateX(45deg)}
 .lu-plane svg{width:100%;height:100%;position:absolute;inset:0}
 .lu-tokens{position:absolute;inset:0;pointer-events:none}
@@ -454,6 +459,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
       </span>
     </button>
     <div id="rosterImportStatus" style="display:none;margin-bottom:10px;padding:8px 10px;background:rgba(91,192,222,.08);border:1px solid rgba(91,192,222,.35);border-radius:8px;font-size:12px;color:#5bc0de;text-align:center"></div>
+    <button id="sampleSquadBtn" type="button" onclick="fillSampleSquad()" style="width:100%;padding:10px 12px;background:none;border:1px dashed #444;border-radius:10px;color:#999;cursor:pointer;margin-bottom:12px;font-family:inherit;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="users" width="15" height="15" style="width:15px;height:15px;display:inline-flex"></i>Fill a sample squad — just to try the app</button>
     <div id="posTagsHint" style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.5;color:#ccc"></div>
     <div id="nameCleanupBanner" style="display:none"></div>
     <div id="playerEditList"></div>
@@ -1973,12 +1979,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0-beta';
+const APP_VERSION='v2.0.1-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.0.1-beta':{
+    title:'Sample squad + AFL iso pitch',
+    items:[
+      'New team? Tap "Fill a sample squad" in the team editor to drop in a generic roster (names, numbers, positions) and start playing straight away',
+      'AFL oval now shown in the foreshortened isometric view (tilted ground), not flat top-down'
+    ]
+  },
   'v2.0-beta':{
     title:'AFL mode',
     items:[
@@ -2578,6 +2591,40 @@ function renderEditTeamPrefs(){
   host.appendChild(stepRow('Players per sub','sc',1,Math.max(1,fmt.onField-1)));
 }
 
+// One-tap sample roster so a new team can start a game immediately to try the
+// app. Tops the squad up to (on-field + a small bench) with generic names,
+// jersey numbers and a spread of position tags. Won't wipe real players.
+const SAMPLE_NAMES=['Alex','Charlie','Sam','Jordan','Riley','Jamie','Quinn','Taylor','Morgan','Harper','Avery','Max','Leo','Mia','Eva','Noah','Hugo','Archie','Ella','Ruby','Zoe','Finn','Kai','Ivy','Cooper','Lily','Jack','Will','Tom','Ben','Oscar','Ned','Joe','Zac','Hudson','Ollie'];
+function fillSampleSquad(){
+  if(!editingTeam) return;
+  const fmt=FORMATS[editingTeam.format]||FORMATS['7v7'];
+  const benchTarget=Math.max(2, Math.round(fmt.onField*0.3));
+  const total=fmt.onField+benchTarget;
+  let players=(editingTeam.players||[]).map(p=>p.trim()).filter(p=>p.length>0);
+  const seen=new Set(players.map(p=>p.toLowerCase()));
+  editingTeam.numbers=editingTeam.numbers||{};
+  editingTeam.positions=editingTeam.positions||{};
+  const tags=(getSport(editingTeam).positions||[]).filter(t=>t!=='GK'); // keep GK rare
+  let ni=0, guard=0;
+  while(players.length<total && guard++<500){
+    const base=SAMPLE_NAMES[ni%SAMPLE_NAMES.length];
+    const suffix=Math.floor(ni/SAMPLE_NAMES.length);
+    const name=suffix>0?`${base} ${suffix+1}`:base;
+    ni++;
+    if(seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    players.push(name);
+    editingTeam.numbers[name]=String(players.length);
+    if(tags.length) editingTeam.positions[name]=[tags[(players.length-1)%tags.length]];
+  }
+  editingTeam.players=players;
+  if(!editingTeam.name||!editingTeam.name.trim()){
+    const sp=getSport(editingTeam);
+    editingTeam.name=(sp.key==='afl'?'Sample AFL Team':sp.key==='netball'?'Sample Netball Team':'Sample Soccer Team');
+    document.getElementById('teamNameInput').value=editingTeam.name;
+  }
+  renderEditTeam();
+}
 function addPlayerField(){
   // Generate a unique placeholder so multiple new rows don't share the empty-string positions key
   let n=editingTeam.players.length+1;
