@@ -622,10 +622,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   </div>
 
   <!-- Action dashboard — pick a mode, then tap player(s) on the pitch.
-       Swap (move positions) / Keeper (set GK) / Injury (off + replace) / Undo. -->
+       Swap (move positions / change keeper) / Injury (off + replace) / Undo. -->
   <div id="gameDash" style="display:flex;gap:6px;padding:0 12px 8px;flex-shrink:0">
-    <button class="gd-btn" id="gdSwap" onclick="setGameMode('swap')">${''}</button>
-    <button class="gd-btn" id="gdKeeper" onclick="setGameMode('keeper')"></button>
+    <button class="gd-btn" id="gdSwap" onclick="setGameMode('swap')"></button>
     <button class="gd-btn" id="gdInjury" onclick="setGameMode('injury')"></button>
     <button class="gd-btn" id="gdUndo" onclick="undoLastSub()"></button>
   </div>
@@ -1820,9 +1819,8 @@ const CHANGELOG_DATA={
   'v1.9.1-beta':{
     title:'In-game control dashboard',
     items:[
-      'New action dashboard under the timer — Swap, Keeper, Injury, Undo all in one place',
-      'Swap: tap two players to exchange positions (set your line-up or reshuffle mid-game)',
-      'Keeper: tap a player to make them goalkeeper on the fly',
+      'New action dashboard under the timer — Swap, Injury and Undo all in one place',
+      'Swap: tap two players to exchange positions (set your line-up or reshuffle mid-game) — tap the keeper to change GK',
       'Injury: tap the injured player, then pick exactly who comes on (not just next in queue)',
       'Subtle soft-UI polish — consistent depth and gradients across buttons, chips and cards'
     ]
@@ -3810,12 +3808,6 @@ function setGameMode(m){
 }
 
 function tapFieldPlayer(pIdx, isGk){
-  if(gameMode==='keeper'){
-    if(!isGk) makeKeeper(pIdx);
-    gameMode='swap';
-    renderG();
-    return;
-  }
   if(gameMode==='injury'){
     if(isGk) return;          // change the keeper via Keeper mode, not Injury
     if(!G.bench.length) return;
@@ -3847,17 +3839,10 @@ function tapBenchForInjury(pIdx){
   return true;
 }
 
-// Make a player the goalkeeper — swap them into the GK slot (role transfers).
-function makeKeeper(pIdx){
-  if(G.gk===pIdx) return;     // already the keeper
-  swapFieldPositions(G.gk, pIdx);
-  saveActiveGame();
-}
-
 function renderGameDash(){
   const dash=document.getElementById('gameDash');
   if(!dash) return;
-  [['gdSwap','swap','move','Swap'],['gdKeeper','keeper','shield','Keeper'],['gdInjury','injury','bandage','Injury']]
+  [['gdSwap','swap','move','Swap'],['gdInjury','injury','bandage','Injury']]
     .forEach(([id,mode,icon,label])=>{
       const el=document.getElementById(id);
       if(!el) return;
@@ -4336,15 +4321,13 @@ function renderRoster(){
   // Mode hint — tells the coach what tapping a player will do right now.
   if(G){
     let hintHtml=null, hintCol='#5bc0de';
-    if(gameMode==='keeper'){
-      hintHtml=`${ic('shield',12,'#5bc0de')} Tap a player to make them goalkeeper`;
-    } else if(gameMode==='injury'){
+    if(gameMode==='injury'){
       if(injuryOffSel!==null){ hintCol='#e94560'; hintHtml=`${ic('arrow-down',12,'#e94560')} ${fn(avail[injuryOffSel])} off — tap a bench player to bring on`; }
       else { hintCol='#e94560'; hintHtml=`${ic('bandage',12,'#e94560')} Tap the injured player`; }
     } else if(fieldSwapSel!==null){
-      hintCol='#fff'; hintHtml=`${ic('move',12,'#fff')} Tap another player to swap`;
-    } else if(G.secs===0 && !G.running){
-      hintHtml=`${ic('hand',12,'#5bc0de')} Tap two players to swap their starting positions`;
+      hintCol='#fff'; hintHtml=`${ic('move',12,'#fff')} Tap another player to swap (tap the keeper to change GK)`;
+    } else {
+      hintHtml=`${ic('hand',12,'#5bc0de')} Tap two players to swap — including the keeper to change GK`;
     }
     if(hintHtml){
       const hint=document.createElement('div');

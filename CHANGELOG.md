@@ -6,9 +6,8 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ## v1.9.1-beta — In-game control dashboard
 
-- 🎛️ **Action dashboard** under the timer — **Swap / Keeper / Injury / Undo** in one persistent control bar, instead of hidden tap-gestures.
-- ↔️ **Swap** — tap two players to exchange positions. Sets the starting line-up before kickoff and reshuffles mid-game.
-- 🧤 **Keeper** — tap a player to make them goalkeeper on the fly (GK role transfers, old keeper takes their slot).
+- 🎛️ **Action dashboard** under the timer — **Swap / Injury / Undo** in one persistent control bar, instead of hidden tap-gestures.
+- ↔️ **Swap** — tap two players to exchange positions. Sets the starting line-up before kickoff and reshuffles mid-game. **Tap the keeper** in a swap to change who's in goal (role transfers automatically) — no separate keeper button needed.
 - 🚑 **Injury** — tap the injured player, the bench lights up, tap exactly who comes on (no longer forced to the front of the queue). "Out for game" option preserved.
 - ↩️ **Undo** surfaced as a dashboard button (disabled when there's nothing to revert).
 - ✨ **Subtle soft-UI pass** — consistent corner radii, soft drop shadows + faint top highlight, gentle gradients and tactile press states across buttons, chips and cards. Reads premium without heavy neumorphism.
