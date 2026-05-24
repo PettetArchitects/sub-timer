@@ -4,6 +4,19 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v2.1.0-beta — AFL oval is now a real 3D model
+
+- 🏉 **True 3D AFL ground** built with Three.js (WebGL). Drag to rotate, pinch to zoom, tap a player exactly like before. The oval, goal posts, centre square, centre circles and 50m arcs all render in real 3D space.
+- 🎥 **Three locked camera presets** — **Behind** the goals (default), **Side** on, and **Top** down. One tap each; the active preset is highlighted until you drag away.
+- 🔒 **Lock toggle** (🔓/🔒) freezes the camera so you can't nudge it mid-game.
+- 🧩 Players are HTML pills projected over the 3D canvas, so they stay upright, readable and tappable at any angle. The pitch lives in its own isolated zone — no clipping over the rest of the UI.
+
+### Architecture notes
+- New `afl3d` object owns a `THREE.WebGLRenderer` + `OrbitControls` (rotate/zoom, `enablePan:false`, damping, `minDistance 130`/`maxDistance 520`, polar clamp `0.04–1.46`). `buildGround()` draws the oval (filled `ShapeGeometry` ellipse + boundary `LineLoop`), centre square 50×50, centre circles r5/r1.5, 50m arcs, goal squares and 4 standing posts per end. `worldOf(px,py,h)` maps formation %→world (`FIELD_W 135 × FIELD_L 165`). `projectPills()` runs each rAF frame: `worldOf(...).project(camera)` → overlay `left/top`. `setView(name)` hard-resets the orbit frame (`camera.up=(0,1,0)` + `lookAt`) so presets never end up rotated; the `top` preset is nudged off the exact zenith (`z=55`) to keep the length axis vertical (no gimbal flip). `controls 'start'` clears the preset highlight. `afl3d.update(container, buildPill)` re-inits if the canvas was wiped and resizes the renderer to the settled zone each `renderG`. Falls back to the 2D AFL views (`v2.0.4–2.0.9`) when Three.js is unavailable.
+- `renderRoster` routes AFL teams to the 3D viewer when `afl3d.ready()`; `renderG` hides the old 2D view/tilt controls (`#aflViewBtn`/`#aflTiltCtrl`) when 3D is active.
+
+---
+
 ## v2.0.5-beta — AFL scoring (goals & behinds)
 
 - 🏉 **Proper AFL scoring** — the score header is sport-aware. AFL teams get separate **GOAL (6)** and **BEHIND (1)** buttons per side; score shows the footy way **goals.behinds (total)** — e.g. `5.3 (33)`. **−** undoes the last score. Goals fire the scorer + assist picker; behinds don't. Match log + full-time summary distinguish goals from behinds. Soccer/netball keep the simple −/＋ tally.

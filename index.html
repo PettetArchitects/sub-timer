@@ -207,6 +207,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    field aspect; the width foreshortening is baked into aflProject (cabinet tilt),
    so the oval sits tall with its sides drawn in slightly (no egg). */
 .lu-pitch.np-afl{aspect-ratio:135/165}
+/* ===== 3D AFL pitch viewer (Three.js) — a clean self-contained zone ===== */
+.afl3d-wrap{position:absolute;inset:0;overflow:hidden;border-radius:10px;touch-action:none;background:rgba(9,14,24,.45);border:1px solid rgba(42,53,80,.55)}
+.afl3d-wrap canvas{display:block;width:100%;height:100%;touch-action:none}
+.afl3d-overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.afl3d-overlay .fc{pointer-events:auto}
+.afl3d-overlay .fc-shirt{width:30px;height:34px}
+.afl3d-overlay .fc-shirt-num{font-size:10px}
+.afl3d-overlay .fc-label{padding:1px 4px;gap:3px;margin-top:1px}
+.afl3d-overlay .fc-pos{font-size:8px;min-width:11px;padding:1px 3px}
+.afl3d-overlay .fc-name{font-size:9px;letter-spacing:.2px}
+.afl3d-overlay .fc-mins{font-size:8px;margin-left:3px}
+.afl3d-views{position:absolute;left:8px;top:8px;display:flex;gap:5px;z-index:5}
+.afl3d-views button{pointer-events:auto;background:rgba(13,18,30,.82);border:1px solid #2a3550;color:#9fb3c8;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;backdrop-filter:blur(4px)}
+.afl3d-views button.active{border-color:#5bc0de;color:#5bc0de;background:rgba(91,192,222,.16)}
+.afl3d-hint{position:absolute;right:8px;top:10px;font-size:9px;color:#5a6b82;letter-spacing:.3px;pointer-events:none;z-index:5}
 .lu-plane{position:absolute;left:0;right:0;bottom:0;height:240%;transform-origin:50% 100%;transform:rotateX(45deg)}
 .lu-plane svg{width:100%;height:100%;position:absolute;inset:0}
 .lu-tokens{position:absolute;inset:0;pointer-events:none}
@@ -322,6 +337,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<!-- Three.js (3D pitch viewer — AFL). Loaded async; the app falls back to the 2D oval if it doesn't arrive. -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 <div class="app">
@@ -1882,6 +1900,192 @@ function aflPitchSvg(){
   </svg>`;
 }
 
+// ===== 3D AFL pitch viewer (Three.js) — free orbit / tilt / zoom, with preset
+// "key views". The ground + posts are real 3D; player pills are HTML projected
+// over the canvas (so they stay upright + tappable, reusing the 2D markup). =====
+const afl3d={
+  ready(){ return !!(window.THREE && THREE.OrbitControls); },
+  FIELD_W:135, FIELD_L:165,
+  renderer:null, scene:null, camera:null, controls:null, wrap:null, overlay:null, raf:null, locked:false, view:'behind',
+  pills:[],   // {el, x, y}
+  worldOf(px,py,h){ return new THREE.Vector3((px/100-0.5)*this.FIELD_W, h||0, (py/100-0.5)*this.FIELD_L); },
+  _ellipsePts(rx,rz,n){ const a=[]; for(let i=0;i<=n;i++){ const t=i/n*Math.PI*2; a.push([Math.cos(t)*rx, Math.sin(t)*rz]); } return a; },
+  _arcPts(cx,cz,r,from,to,n){ const a=[]; for(let i=0;i<=n;i++){ const t=from+(to-from)*(i/n); a.push([cx+Math.cos(t)*r, cz+Math.sin(t)*r]); } return a; },
+  // Circle (centre cx,cz radius r) clipped to the inside of the boundary ellipse (rx,rz). Returns the single contiguous in-field run — the AFL 50m arc stops at the boundary.
+  _arcInEllipse(cx,cz,r,rx,rz,n){
+    n=n||200; const inside=t=>{ const x=cx+Math.cos(t)*r, z=cz+Math.sin(t)*r; return (x*x)/(rx*rx)+(z*z)/(rz*rz)<=1; };
+    const flag=[]; for(let i=0;i<n;i++){ flag.push(inside(i/n*Math.PI*2)); }
+    let start=-1; for(let i=0;i<n;i++){ if(!flag[i] && flag[(i+1)%n]){ start=(i+1)%n; break; } }
+    const out=[];
+    if(start<0){ for(let i=0;i<=n;i++){ const t=i/n*Math.PI*2; if(inside(t)) out.push([cx+Math.cos(t)*r, cz+Math.sin(t)*r]); } return out; }
+    for(let k=0;k<n;k++){ const idx=(start+k)%n; if(!flag[idx]) break; const t=idx/n*Math.PI*2; out.push([cx+Math.cos(t)*r, cz+Math.sin(t)*r]); }
+    return out;
+  },
+  _line(pts2d,color,op,y){ const g=new THREE.BufferGeometry().setFromPoints(pts2d.map(p=>new THREE.Vector3(p[0], y==null?0.08:y, p[1]))); return new THREE.Line(g, new THREE.LineBasicMaterial({color,transparent:true,opacity:op==null?0.5:op})); },
+  buildGround(){
+    const W=this.FIELD_W, L=this.FIELD_L, rx=W/2, rz=L/2, grp=new THREE.Group();
+    // Grass — filled ellipse on the XZ plane
+    const shape=new THREE.Shape(); const ep=this._ellipsePts(rx,rz,96);
+    shape.moveTo(ep[0][0],ep[0][1]); ep.slice(1).forEach(p=>shape.lineTo(p[0],p[1]));
+    const gm=new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({color:0x16241c}));
+    gm.rotation.x=-Math.PI/2; gm.position.y=0; grp.add(gm);
+    // Boundary
+    grp.add(this._line(this._ellipsePts(rx,rz,128),0xffffff,0.55));
+    // Centre square 50x50, centre circles (r5 + r1.5)
+    grp.add(this._line([[-25,-25],[25,-25],[25,25],[-25,25],[-25,-25]],0xffffff,0.3));
+    grp.add(this._line(this._ellipsePts(5,5,48),0xffffff,0.34));
+    grp.add(this._line(this._ellipsePts(1.5,1.5,24),0xffffff,0.38));
+    // 50m arcs + goal squares + posts at each end (z = ±rz)
+    [-1,1].forEach(s=>{
+      const gz=s*rz;
+      // 50m arc — clipped to the boundary so it never spills outside the oval (ends die on the boundary line)
+      grp.add(this._line(this._arcInEllipse(0,gz,50,rx,rz,220),0xffffff,0.32));
+      // goal square 6.4 wide (x) × 9 deep (z, into field)
+      const gw=6.4/2, gd=9; const z2=gz-s*gd;
+      grp.add(this._line([[-gw,gz],[gw,gz],[gw,z2],[-gw,z2],[-gw,gz]],0xffffff,0.4));
+      // 4 posts: goals ±3.2, behinds ±9.6 — standing up (y 0→7)
+      [-9.6,-3.2,3.2,9.6].forEach(off=>{
+        const tall=Math.abs(off)<5?7:5.5;
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(off,0,gz),new THREE.Vector3(off,tall,gz)]);
+        grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.7})));
+      });
+    });
+    return grp;
+  },
+  init(container){
+    container.style.position='relative';   // confine the absolute wrap to this clean zone (no clipping over other UI)
+    const W=container.clientWidth||320, H=container.clientHeight||320;
+    const wrap=document.createElement('div'); wrap.className='afl3d-wrap';
+    const overlay=document.createElement('div'); overlay.className='afl3d-overlay';
+    const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+    renderer.setSize(W,H);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(42, W/H, 1, 3000);
+    const controls=new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enablePan=false; controls.enableDamping=true; controls.dampingFactor=0.12;
+    controls.minDistance=130; controls.maxDistance=520; controls.minPolarAngle=0.04; controls.maxPolarAngle=1.46;
+    // Once the user drags/pinches, they've left the preset — drop the highlight (setView fires 'change', not 'start', so presets stay lit).
+    controls.addEventListener('start', ()=>{ if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.remove('active')); });
+    scene.add(this.buildGround());
+    // Sample points the camera must keep in frame (boundary ring + post tops) → used to auto-zoom the oval to fill the box.
+    this._fitPts=[]; { const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
+      for(let i=0;i<56;i++){ const t=i/56*Math.PI*2; this._fitPts.push(new THREE.Vector3(Math.cos(t)*rx,0,Math.sin(t)*rz)); }
+      [-rz,rz].forEach(gz=>this._fitPts.push(new THREE.Vector3(0,7,gz))); }
+    this._fitMargin=1.06; this._pillScale=0.95; this._fitD=null;
+    wrap.appendChild(renderer.domElement); wrap.appendChild(overlay);
+    // View buttons + hint
+    const views=document.createElement('div'); views.className='afl3d-views';
+    [['behind','Behind'],['side','Side'],['top','Top']].forEach(([k,lbl])=>{
+      const b=document.createElement('button'); b.textContent=lbl; b.dataset.v=k;
+      b.onclick=()=>this.setView(k); views.appendChild(b);
+    });
+    const lockB=document.createElement('button'); lockB.id='afl3dLock'; lockB.textContent='🔓';
+    lockB.onclick=()=>{ this.locked=!this.locked; this.controls.enableRotate=!this.locked; this.controls.enableZoom=!this.locked; lockB.textContent=this.locked?'🔒':'🔓'; lockB.classList.toggle('active',this.locked); };
+    views.appendChild(lockB);
+    wrap.appendChild(views);
+    const hint=document.createElement('div'); hint.className='afl3d-hint'; hint.textContent='drag · pinch · tap';
+    wrap.appendChild(hint);
+    container.appendChild(wrap);
+    this.renderer=renderer; this.scene=scene; this.camera=camera; this.controls=controls; this.wrap=wrap; this.overlay=overlay; this.viewsEl=views;
+    this.setView(this.view);
+    // Resize handling
+    if(this._ro) this._ro.disconnect();
+    this._ro=new ResizeObserver(()=>{ const w=wrap.clientWidth,h=wrap.clientHeight; if(w&&h){ renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); this.autoFit(); } });
+    this._ro.observe(wrap);
+    this.startLoop();
+  },
+  setView(name){
+    this.view=name; if(!this.camera) return;
+    // Presets define only a DIRECTION (elevation/azimuth); the distance is auto-fitted so the oval fills the box.
+    // top is nudged off the exact zenith (z) so the length axis stays vertical and OrbitControls keeps a defined azimuth (no gimbal flip).
+    const P={behind:[0,0.64,1], side:[1,0.5,0], top:[0,1,0.18]}[name]||[0,0.64,1];
+    const dir=new THREE.Vector3(P[0],P[1],P[2]).normalize();
+    // Hard-reset the orbit frame: restore up, place camera along dir, re-aim. Without the up reset a prior near-vertical view leaves the azimuth rotated.
+    this.camera.up.set(0,1,0);
+    this.controls.target.set(0,0,0);
+    this.camera.position.copy(dir.multiplyScalar(this._fitD||260));
+    this.camera.lookAt(0,0,0);
+    this.controls.update();
+    this.autoFit();
+    if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.toggle('active',b.dataset.v===name));
+  },
+  // Move the camera in/out along its current view direction so every fit point sits inside the frustum — the oval fills the available box at any angle.
+  autoFit(){
+    if(!this.camera||!this._fitPts||!this._fitPts.length) return;
+    const cam=this.camera, target=this.controls.target;
+    const dir=new THREE.Vector3().subVectors(cam.position,target);
+    if(dir.lengthSq()<1e-6) dir.set(0,0.64,1);
+    dir.normalize();
+    let up=new THREE.Vector3(0,1,0);
+    if(Math.abs(dir.dot(up))>0.999) up.set(0,0,-1);
+    const zaxis=dir.clone();                                   // toward camera
+    const xaxis=new THREE.Vector3().crossVectors(up,zaxis).normalize();
+    const yaxis=new THREE.Vector3().crossVectors(zaxis,xaxis).normalize();
+    const vFOV=cam.fov*Math.PI/180, tanV=Math.tan(vFOV/2), tanH=tanV*(cam.aspect||1);
+    let need=0;
+    this._fitPts.forEach(P=>{
+      const v=P.clone().sub(target);
+      const xc=v.dot(xaxis), yc=v.dot(yaxis), zc=v.dot(zaxis);
+      need=Math.max(need, zc+Math.abs(xc)/tanH, zc+Math.abs(yc)/tanV);
+    });
+    let d=need*this._fitMargin;
+    d=Math.max(this.controls.minDistance, Math.min(this.controls.maxDistance, d));
+    this._fitD=d;
+    cam.position.copy(target).addScaledVector(dir, d);
+    this.controls.update();
+  },
+  startLoop(){
+    if(this.raf) return;
+    const tick=()=>{
+      if(!this.renderer || !document.body.contains(this.renderer.domElement)){ this.raf=null; return; }
+      // Keep the canvas matched to the (flex) zone size each frame.
+      const w=this.wrap.clientWidth, h=this.wrap.clientHeight, cv=this.renderer.domElement;
+      if(w&&h && (Math.abs(cv.clientWidth-w)>1 || Math.abs(cv.clientHeight-h)>1)){
+        this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix();
+      }
+      this.controls.update();
+      this.renderer.render(this.scene,this.camera);
+      this.projectPills();
+      this.raf=requestAnimationFrame(tick);
+    };
+    this.raf=requestAnimationFrame(tick);
+  },
+  projectPills(){
+    if(!this.overlay||!this.camera) return;
+    const W=this.overlay.clientWidth, H=this.overlay.clientHeight;
+    const camPos=this.camera.position;
+    const baseD=this._fitD||camPos.distanceTo(this.controls.target);
+    this.pills.forEach(p=>{
+      const world=this.worldOf(p.x,p.y,3.5);
+      const v=world.clone().project(this.camera);
+      if(v.z>1){ p.el.style.display='none'; return; }
+      p.el.style.display='';
+      p.el.style.left=((v.x*0.5+0.5)*W)+'px';
+      p.el.style.top=((-v.y*0.5+0.5)*H)+'px';
+      // Icons live on the field: scale by camera distance to THIS pill — zoom in → bigger, nearer pills → bigger (true perspective).
+      let s=this._pillScale*baseD/Math.max(1,camPos.distanceTo(world));
+      s=Math.max(0.5,Math.min(2.2,s));
+      p.el.style.transform='translate(-50%,-50%) scale('+s.toFixed(3)+')';
+    });
+  },
+  update(container, buildPill){
+    if(!this.ready()) return false;
+    // (Re)create the scene if our canvas was wiped from this container.
+    if(!this.renderer || this.renderer.domElement.parentElement?.parentElement!==container){
+      container.innerHTML=''; this.raf=null; this.init(container);
+    }
+    // Size the renderer to the (now-settled) zone — bench/hint are already laid out — then re-fit the oval to it.
+    const w=this.wrap.clientWidth, h=this.wrap.clientHeight;
+    if(w&&h){ this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); this.autoFit(); }
+    // Rebuild pills
+    this.overlay.innerHTML=''; this.pills=[];
+    buildPill((el,x,y)=>{ this.overlay.appendChild(el); this.pills.push({el,x,y}); });
+    this.projectPills(); _li();
+    return true;
+  }
+};
+
 const SOUND_PACKS={
   classic:{label:'Classic',icon:'activity',desc:'Quick beeps',
     sub:(c,t)=>{[0,0.3,0.6].forEach(o=>{const s=c.createOscillator(),g=c.createGain();s.connect(g);g.connect(c.destination);s.type='square';s.frequency.setValueAtTime(880,t+o);g.gain.setValueAtTime(0.2,t+o);g.gain.setValueAtTime(0.2,t+o+0.12);g.gain.exponentialRampToValueAtTime(0.01,t+o+0.15);s.start(t+o);s.stop(t+o+0.18);});},
@@ -2015,12 +2219,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0.9-beta';
+const APP_VERSION='v2.1.0-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.1.0-beta':{
+    title:'AFL oval — real 3D you can spin',
+    items:[
+      'The AFL ground is now a true 3D model — drag to rotate, pinch to zoom, tap a player as usual',
+      'Three locked camera presets: Behind the goals, Side on, and Top down — one tap each',
+      'Tap 🔓 to lock the camera so you don\'t nudge it mid-game',
+      'Players, goal posts, the centre square and 50m arcs all sit in their real positions on the oval'
+    ]
+  },
   'v2.0.9-beta':{
     title:'AFL tilt control',
     items:[
@@ -4035,15 +4248,16 @@ function renderG(){
   const avb=document.getElementById('aflViewBtn');
   const atc=document.getElementById('aflTiltCtrl');
   const _aflGame=getSport(currentTeam).key==='afl';
+  const _afl3dOn=_aflGame && afl3d.ready();   // 3D viewer has its own on-canvas controls
   if(avb){
-    if(_aflGame){
+    if(_aflGame && !_afl3dOn){
       avb.style.display='inline-flex';
       avb.innerHTML=`${ic('refresh',11)}<span>${aflView==='landscape'?'Landscape':'Portrait'}</span>`;
     } else { avb.style.display='none'; }
   }
   if(atc){
-    // Tilt control only in portrait (the rotateX perspective view).
-    if(_aflGame && aflView!=='landscape'){
+    // 2D tilt control only when 3D is unavailable + in portrait.
+    if(_aflGame && !_afl3dOn && aflView!=='landscape'){
       atc.style.display='inline-flex';
       document.getElementById('aflTiltVal').textContent=`Tilt ${aflTilt}°`;
     } else { atc.style.display='none'; }
@@ -4964,8 +5178,11 @@ function renderRoster(){
   const benchTop=document.getElementById('benchTop');
   const pitchMid=document.getElementById('pitchMid');
   const hintC=document.getElementById('modeHint');
+  // AFL uses the 3D viewer when Three.js is available; it manages pitchMid itself
+  // (don't wipe its canvas). Falls back to the 2D oval otherwise.
+  const _use3d=(getSport(currentTeam).key==='afl') && afl3d.ready();
   if(benchTop) benchTop.innerHTML='';
-  if(pitchMid) pitchMid.innerHTML='';
+  if(pitchMid && !_use3d) pitchMid.innerHTML='';
   if(hintC) hintC.innerHTML='';
   const fmtDef=FORMATS[curFmt];
   const positions=getPositions();
@@ -5013,6 +5230,28 @@ function renderRoster(){
       const tintBd=hintCol==='#e94560'?'rgba(233,69,96,.35)':(hintCol==='#fff'?'rgba(255,255,255,.25)':'rgba(91,192,222,.35)');
       hintC.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${hintCol};background:${tintBg};border:1px solid ${tintBd};border-radius:12px;padding:4px 10px">${hintHtml}</span>`;
     }
+  }
+
+  // ===== AFL 3D viewer — managed by afl3d (Three.js). Pills are HTML over the canvas. =====
+  if(_use3d){
+    afl3d.update(pitchMid, (add)=>{
+      playerSlots.forEach(({pos,pIdx,isGk})=>{
+        const isOff=nextOff.has(pIdx);
+        const mins=Math.floor(G.pt[avail[pIdx]]/60);
+        let replacedBy=null;
+        if(isOff&&swapMap){ for(const [b,f] of Object.entries(swapMap)){ if(parseInt(f)===pIdx) replacedBy=parseInt(b); } }
+        const el=document.createElement('div');
+        const isSwapSel=(fieldSwapSel===pIdx);
+        el.className='fc '+(isGk?'fc-gk':'fc-on')+(isOff?' fc-off':'')+(isSwapSel?' fc-sel':'');
+        el.style.cssText='position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center;cursor:pointer';
+        const subInline=isOff&&replacedBy!==null?`<span class="fc-mins" style="color:#22c55e">↑${fn(avail[replacedBy])}</span>`:'';
+        const jersey=currentTeam?getPlayerNumber(currentTeam,avail[pIdx]):'';
+        el.innerHTML=`<div class="fc-shirt">${shirtSvg(jersey)}</div><div class="fc-label"><span class="fc-pos">${pos.label}</span><span class="fc-name">${fn(avail[pIdx])}</span><span class="fc-mins">${mins}′</span>${subInline}</div>`;
+        el.onclick=()=>tapFieldPlayer(pIdx,isGk);
+        add(el, pos.x, pos.y);   // pos.x=width%, pos.y=length% → afl3d.worldOf
+      });
+    });
+    return;
   }
 
   // ===== PITCH DIAGRAM — middle, fills the remaining space =====
