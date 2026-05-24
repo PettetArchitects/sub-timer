@@ -633,6 +633,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <!-- Our formation lives on the bottom control bar (Formation button).
          Opponent overlay parked until it's properly tested. -->
     <span id="subStratLbl" onclick="changeSubStrategy()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:none">Subs</span>
+    <!-- AFL pitch view toggle (portrait / landscape) — shown only for AFL. -->
+    <span id="aflViewBtn" onclick="toggleAflView()" style="display:none;align-items:center;gap:4px;font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px"></span>
     <!-- Contextual tip — rendered inline here by renderRoster (no longer a banner). -->
     <span id="modeHint" style="display:inline-flex;align-items:center"></span>
   </div>
@@ -1777,13 +1779,22 @@ const SOCCER_PITCH_SVG=window.SOCCER_PITCH_SVG;
 // oval, goals top & bottom, with the WIDTH gently foreshortened by the cabinet
 // tilt (cos(90−tilt)). An oval projects to an oval (no egg). The same projection
 // places markings AND player tokens; shirts stay upright.
-const AFL_TILT=66, AFL_DEPTH='x';   // 'x' = compress width (camera behind goal)
+// Prototype's cabinet projection + view modes. Two views, both tilted:
+//   'portrait'  = camera behind the goal → depth is x (width foreshortened), tall oval, goals top/bottom.
+//   'landscape' = camera on the long side → depth is y (width foreshortened), wide oval, goals left/right.
+const AFL_TILT=66;
+let aflView=(()=>{ try{return localStorage.getItem('aflView')||'portrait';}catch(e){return 'portrait';} })();
+function aflDepth(){ return aflView==='landscape'?'y':'x'; }
 function aflProject(wx,wy){
   const c=Math.cos((90-AFL_TILT)*Math.PI/180);
-  return AFL_DEPTH==='y' ? {x:wx, y:50+(wy-50)*c} : {x:50+(wx-50)*c, y:wy};
+  return aflDepth()==='y' ? {x:wx, y:50+(wy-50)*c} : {x:50+(wx-50)*c, y:wy};
 }
+// Formations are stored portrait (x=width, y=length). Convert to world coords for
+// the current view (landscape swaps the axes — length runs horizontal).
+function aflWorld(pos){ return aflView==='landscape'?{x:pos.y,y:pos.x}:{x:pos.x,y:pos.y}; }
+function toggleAflView(){ aflView=aflView==='landscape'?'portrait':'landscape'; try{localStorage.setItem('aflView',aflView);}catch(e){} renderG(); }
 function aflPitchSvg(){
-  const TILT=AFL_TILT, DEPTH_AXIS=AFL_DEPTH;
+  const TILT=AFL_TILT, DEPTH_AXIS=aflDepth();
   const FIELD_LEN_M=165, FIELD_WID_M=135;
   const along_len=m=>(m/FIELD_LEN_M)*100, along_wid=m=>(m/FIELD_WID_M)*100;
   function tiltPt(wx,wy){ const c=Math.cos((90-TILT)*Math.PI/180);
@@ -1989,12 +2000,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0.6-beta';
+const APP_VERSION='v2.0.7-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.0.7-beta':{
+    title:'AFL pitch view toggle',
+    items:[
+      'AFL oval now has both views from the prototype — tap the Portrait/Landscape pill to switch',
+      'Portrait = camera behind the goal (tall oval); Landscape = camera on the long side (wide oval). Your choice is remembered.'
+    ]
+  },
   'v2.0.6-beta':{
     title:'AFL oval — correct angle',
     items:[
@@ -3984,6 +4002,14 @@ function renderG(){
       sslbl.style.display='none';
     }
   }
+  // AFL pitch view toggle — only for AFL.
+  const avb=document.getElementById('aflViewBtn');
+  if(avb){
+    if(getSport(currentTeam).key==='afl'){
+      avb.style.display='inline-flex';
+      avb.innerHTML=`${ic('refresh',11)}<span>${aflView==='landscape'?'Landscape':'Portrait'}</span>`;
+    } else { avb.style.display='none'; }
+  }
 
   // Pitch visualization
   renderPitch();
@@ -4962,6 +4988,7 @@ function renderRoster(){
   if(_isNb){
     pitch.innerHTML=`<div class="pitch-lines"></div><div class="nb-third nb-third-1"></div><div class="nb-third nb-third-2"></div><div class="nb-circle-top"></div><div class="nb-circle-bot"></div><div class="nb-centre-circle"></div>`;
   } else if(_isAfl){
+    pitch.style.aspectRatio=(aflView==='landscape')?'165 / 135':'135 / 165';  // wide vs tall by view
     pitch.innerHTML=aflPitchSvg();
   } else {
     pitch.innerHTML=`<div class="lu-plane">${SOCCER_PITCH_SVG}</div>`;
@@ -4998,7 +5025,10 @@ function renderRoster(){
     const isSwapSel=(fieldSwapSel===pIdx);
     el.className='fc '+(isGk?'fc-gk':'fc-on')+(isOff?' fc-off':'')+(isSwapSel?' fc-sel':'');
     const _adj=adjustY(pos,isGk);
-    const _proj=_isAfl?aflProject(_adj.x,_adj.y):(_isNb?{x:_adj.x,y:_adj.y}:pitchPt(_adj.x,_adj.y));
+    let _proj;
+    if(_isAfl){ const _w=aflWorld(_adj); _proj=aflProject(_w.x,_w.y); }
+    else if(_isNb){ _proj={x:_adj.x,y:_adj.y}; }
+    else { _proj=pitchPt(_adj.x,_adj.y); }
     el.style.cssText=`left:${_proj.x}%;top:${_proj.y}%;position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center`;
     // Sub indicator sits inline in the name pill, to the right with the arrow.
     const subInline=isOff&&replacedBy!==null?`<span class="fc-mins" style="color:#22c55e">↑${fn(avail[replacedBy])}</span>`:'';
