@@ -52,22 +52,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .info{background:#16213e;padding:10px 16px;font-size:13px;color:#aaa;text-align:center}
 
 /* Buttons */
-.btn{display:block;width:100%;padding:15px;border:none;border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;margin-top:12px;transition:all .15s}
-.btn-r{background:#e94560;color:#fff}
-.btn-r:disabled{background:#444;color:#666}
-.btn-g{background:#00d4aa;color:#1a1a2e}
-.btn-o{background:transparent;border:2px solid #e94560;color:#e94560}
-.btn-s{padding:10px 16px;font-size:14px;margin-top:0;display:inline-block;width:auto;border-radius:8px}
+/* === Soft-UI design tokens (v1.9) — subtle tactile depth, consistent everywhere.
+   Raised controls get a faint top-down gradient, a soft drop shadow, and a
+   1px inset highlight on the top edge. Kept subtle so it reads premium, not
+   heavy. */
+:root{
+  --r-btn:12px; --r-chip:10px; --r-sm:8px;
+  --sh-raise:0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+  --sh-raise-lg:0 4px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
+  --sh-press:inset 0 2px 5px rgba(0,0,0,.5);
+}
+.btn{display:block;width:100%;padding:15px;border:none;border-radius:var(--r-btn);font-size:17px;font-weight:700;cursor:pointer;margin-top:12px;transition:all .15s;box-shadow:var(--sh-raise)}
+.btn:active{transform:translateY(1px);box-shadow:var(--sh-press)}
+.btn-r{background:linear-gradient(180deg,#ef5872,#e0344f);color:#fff}
+.btn-r:disabled{background:#3a3f4c;color:#666;box-shadow:none}
+.btn-g{background:linear-gradient(180deg,#1ae0b8,#00c2a0);color:#06231d}
+.btn-o{background:linear-gradient(180deg,rgba(233,69,96,.12),rgba(233,69,96,.04));border:1.5px solid #e94560;color:#e94560}
+.btn-s{padding:10px 16px;font-size:14px;margin-top:0;display:inline-block;width:auto;border-radius:var(--r-sm)}
 .btn-del{background:#3a1525;color:#e94560;border:1px solid #e94560}
 
 /* Cards & chips */
-.card{background:#16213e;border-radius:12px;padding:16px;margin-bottom:10px}
+.card{background:linear-gradient(180deg,#1a2747,#141f3a);border-radius:var(--r-btn);padding:16px;margin-bottom:10px;box-shadow:var(--sh-raise)}
 .chip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media(min-width:768px){.chip-grid{grid-template-columns:1fr 1fr 1fr}}
-.chip{padding:14px 10px;background:#16213e;border:2px solid #333;border-radius:10px;font-size:14px;font-weight:600;text-align:center;cursor:pointer;transition:all .15s}
-.chip.sel{border-color:#00d4aa;background:#0a2a2a;color:#00d4aa}
+.chip{padding:14px 10px;background:linear-gradient(180deg,#1a2645,#141d36);border:1.5px solid #2c3a55;border-radius:var(--r-chip);font-size:14px;font-weight:600;text-align:center;cursor:pointer;transition:all .15s;box-shadow:var(--sh-raise)}
+.chip:active{transform:translateY(1px);box-shadow:var(--sh-press)}
+.chip.sel{border-color:#00d4aa;background:linear-gradient(180deg,#0c3330,#0a2622);color:#00d4aa}
 .chip.sel::after{content:' ✓'}
-.chip.gk-sel{border-color:#e94560;background:#2a1020;color:#e94560}
+.chip.gk-sel{border-color:#e94560;background:linear-gradient(180deg,#33121f,#260d18);color:#e94560}
 
 /* Stepper */
 .set-row{display:flex;align-items:center;justify-content:space-between;padding:14px;background:#16213e;border-radius:10px;margin-bottom:8px}
@@ -158,6 +170,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .pair-player.on-bench{background:#2a1f0a;border:2px solid #f0a500;color:#f0a500}
 .pair-player.pair-sel{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.3)}
 .pair-swap{font-size:16px;color:#666;flex-shrink:0}
+
+/* In-game action dashboard — mode buttons (Swap / Keeper / Injury / Undo).
+   Shares the soft-UI language: subtle gradient, soft shadow, top highlight. */
+.gd-btn{flex:1;padding:9px 4px;border-radius:var(--r-sm);border:1.5px solid #2a3550;background:linear-gradient(180deg,#13203a,#0d1828);color:#9fb3c8;font-size:11px;font-weight:800;letter-spacing:.4px;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .15s;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:var(--sh-raise)}
+.gd-btn:active{transform:translateY(1px);box-shadow:var(--sh-press)}
+.gd-btn svg{width:17px;height:17px}
+.gd-btn.active{background:linear-gradient(180deg,rgba(91,192,222,.22),rgba(91,192,222,.1));border-color:#5bc0de;color:#5bc0de;box-shadow:0 0 10px rgba(91,192,222,.3), inset 0 1px 0 rgba(255,255,255,.08)}
+#gdInjury.active{background:linear-gradient(180deg,rgba(233,69,96,.22),rgba(233,69,96,.1));border-color:#e94560;color:#e94560;box-shadow:0 0 10px rgba(233,69,96,.3), inset 0 1px 0 rgba(255,255,255,.08)}
+.gd-btn:disabled{opacity:.4;cursor:default;box-shadow:none}
 
 /* Diagrammatic pitch — v1.9 uses CSS 3D perspective to tilt the ground plane.
    .lu-pitch is the perspective frustum. .lu-plane is the tilted SVG ground.
@@ -595,9 +616,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   </div>
 
   <!-- Controls -->
-  <div style="display:flex;gap:6px;padding:4px 12px 8px;flex-shrink:0">
+  <div style="display:flex;gap:6px;padding:4px 12px 6px;flex-shrink:0">
     <button class="btn btn-g" id="ppB" onclick="tog()" style="margin:0;flex:1;padding:12px;font-size:16px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:6px"><i data-lucide="play" width="16" height="16" style="width:16px;height:16px;display:inline-flex"></i>START</button>
-    <button class="btn" id="subB" onclick="manualSub()" style="margin:0;flex:1;padding:12px;font-size:14px;border-radius:10px;background:#f0a500;color:#1a1a2e;font-weight:800">SUB</button>
+    <button class="btn" id="subB" onclick="manualSub()" style="margin:0;flex:1;padding:12px;font-size:14px;border-radius:10px;background:linear-gradient(180deg,#ffb52e,#ec9c00);color:#1a1a2e;font-weight:800">SUB</button>
+  </div>
+
+  <!-- Action dashboard — pick a mode, then tap player(s) on the pitch.
+       Swap (move positions) / Keeper (set GK) / Injury (off + replace) / Undo. -->
+  <div id="gameDash" style="display:flex;gap:6px;padding:0 12px 8px;flex-shrink:0">
+    <button class="gd-btn" id="gdSwap" onclick="setGameMode('swap')">${''}</button>
+    <button class="gd-btn" id="gdKeeper" onclick="setGameMode('keeper')"></button>
+    <button class="gd-btn" id="gdInjury" onclick="setGameMode('injury')"></button>
+    <button class="gd-btn" id="gdUndo" onclick="undoLastSub()"></button>
   </div>
 
   <!-- Sub confirmation banner (hidden by default) -->
@@ -1781,12 +1811,22 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.9-beta';
+const APP_VERSION='v1.9.1-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.9.1-beta':{
+    title:'In-game control dashboard',
+    items:[
+      'New action dashboard under the timer — Swap, Keeper, Injury, Undo all in one place',
+      'Swap: tap two players to exchange positions (set your line-up or reshuffle mid-game)',
+      'Keeper: tap a player to make them goalkeeper on the fly',
+      'Injury: tap the injured player, then pick exactly who comes on (not just next in queue)',
+      'Subtle soft-UI polish — consistent depth and gradients across buttons, chips and cards'
+    ]
+  },
   'v1.9-beta':{
     title:'3D pitch + jersey pills',
     items:[
@@ -3460,6 +3500,7 @@ function renderG(){
 
   // Pitch visualization
   renderPitch();
+  renderGameDash();
   _li();
 }
 
@@ -3751,28 +3792,85 @@ function moveBenchDown(pIdx){
   saveActiveGame();
   renderG();
 }
-// === Tap-to-swap on the game field (before kickoff) ===
-// Before the clock starts, tapping two on-field players swaps their positions
-// so the coach can set the starting line-up right on the pitch. Once the game
-// is running, tapping a player triggers an injury sub instead.
-let fieldSwapSel=null;
+// === In-game action dashboard ===
+// The dashboard (Swap / Keeper / Injury / Undo) sets the active mode; tapping
+// players on the pitch then applies that mode. Works before AND during the game.
+//   swap   — tap two players to exchange positions (also sets starting line-up)
+//   keeper — tap a player to make them goalkeeper
+//   injury — tap the injured player, then tap who comes on from the bench
+let gameMode='swap';        // 'swap' | 'keeper' | 'injury'
+let fieldSwapSel=null;      // first player tapped in swap mode
+let injuryOffSel=null;      // injured player tapped, awaiting replacement pick
+
+function setGameMode(m){
+  gameMode=(gameMode===m)?'swap':m;   // tapping the active mode returns to swap
+  fieldSwapSel=null;
+  injuryOffSel=null;
+  renderG();
+}
+
 function tapFieldPlayer(pIdx, isGk){
-  // After kickoff → injury-sub flow (existing behaviour). GK can't be injury-subbed.
-  if(G.secs>0 || G.running){
-    if(!isGk && G.bench.length>0) injurySub(pIdx);
+  if(gameMode==='keeper'){
+    if(!isGk) makeKeeper(pIdx);
+    gameMode='swap';
+    renderG();
     return;
   }
-  // Pre-kickoff → swap two players' positions on the field.
+  if(gameMode==='injury'){
+    if(isGk) return;          // change the keeper via Keeper mode, not Injury
+    if(!G.bench.length) return;
+    injuryOffSel=pIdx;        // remember who's coming off; bench pills now pick the replacement
+    renderG();
+    return;
+  }
+  // swap mode (default) — exchange two players' positions
   if(fieldSwapSel===null){
     fieldSwapSel=pIdx;
   } else if(fieldSwapSel===pIdx){
-    fieldSwapSel=null;            // tapped the same player → deselect
+    fieldSwapSel=null;        // tapped same player → deselect
   } else {
     swapFieldPositions(fieldSwapSel, pIdx);
     fieldSwapSel=null;
     saveActiveGame();
   }
   renderG();
+}
+
+// Injury mode: after tapping the injured player, tapping a bench player picks
+// the replacement and fires the injury-sub confirmation banner.
+function tapBenchForInjury(pIdx){
+  if(gameMode!=='injury' || injuryOffSel===null) return false;
+  const off=injuryOffSel;
+  injuryOffSel=null;
+  gameMode='swap';
+  injurySub(off, pIdx);       // off player out, pIdx in
+  return true;
+}
+
+// Make a player the goalkeeper — swap them into the GK slot (role transfers).
+function makeKeeper(pIdx){
+  if(G.gk===pIdx) return;     // already the keeper
+  swapFieldPositions(G.gk, pIdx);
+  saveActiveGame();
+}
+
+function renderGameDash(){
+  const dash=document.getElementById('gameDash');
+  if(!dash) return;
+  [['gdSwap','swap','move','Swap'],['gdKeeper','keeper','shield','Keeper'],['gdInjury','injury','bandage','Injury']]
+    .forEach(([id,mode,icon,label])=>{
+      const el=document.getElementById(id);
+      if(!el) return;
+      el.className='gd-btn'+(gameMode===mode?' active':'');
+      el.innerHTML=`${ic(icon,17)}<span>${label}</span>`;
+    });
+  const undo=document.getElementById('gdUndo');
+  if(undo){
+    undo.innerHTML=`${ic('undo-2',17)}<span>Undo</span>`;
+    undo.disabled=!(G&&G.lastSub);
+    undo.className='gd-btn';
+  }
+  _li();
 }
 function swapFieldPositions(a, b){
   // Swap their slots in G.on (slot order maps to formation positions).
@@ -3788,10 +3886,13 @@ function swapFieldPositions(a, b){
     });
   }
 }
-function injurySub(pIdx){
+function injurySub(pIdx, replacementIdx){
   if(!G||!G.bench.length)return;
   if(G.ps&&document.getElementById('subBanner').style.display!=='none')return;
-  const on=[G.bench[0]];
+  // Coach can pick the replacement (via Injury mode); otherwise default to
+  // the front of the bench queue.
+  const onIdx=(replacementIdx!==undefined&&G.bench.includes(replacementIdx))?replacementIdx:G.bench[0];
+  const on=[onIdx];
   const off=[pIdx];
   G.ps={off,on};
   const banner=document.getElementById('subBanner');
@@ -4232,14 +4333,25 @@ function renderRoster(){
   const positions=getPositions();
   const {nextOff,nextOn,swapMap}=getNextSwap();
 
-  // Pre-kickoff hint: tell the coach they can set the line-up by tapping players.
-  if(G && G.secs===0 && !G.running){
-    const hint=document.createElement('div');
-    hint.style.cssText='flex:0 0 auto;text-align:center;font-size:11px;font-weight:700;letter-spacing:.5px;color:'+(fieldSwapSel!==null?'#fff':'#5bc0de')+';background:rgba(91,192,222,.1);border:1px solid rgba(91,192,222,.3);border-radius:8px;padding:6px 10px';
-    hint.innerHTML=fieldSwapSel!==null
-      ? `${ic('move',12,'#fff')} Tap another player to swap positions`
-      : `${ic('hand',12,'#5bc0de')} Tap two players to swap their starting positions`;
-    rw.appendChild(hint);
+  // Mode hint — tells the coach what tapping a player will do right now.
+  if(G){
+    let hintHtml=null, hintCol='#5bc0de';
+    if(gameMode==='keeper'){
+      hintHtml=`${ic('shield',12,'#5bc0de')} Tap a player to make them goalkeeper`;
+    } else if(gameMode==='injury'){
+      if(injuryOffSel!==null){ hintCol='#e94560'; hintHtml=`${ic('arrow-down',12,'#e94560')} ${fn(avail[injuryOffSel])} off — tap a bench player to bring on`; }
+      else { hintCol='#e94560'; hintHtml=`${ic('bandage',12,'#e94560')} Tap the injured player`; }
+    } else if(fieldSwapSel!==null){
+      hintCol='#fff'; hintHtml=`${ic('move',12,'#fff')} Tap another player to swap`;
+    } else if(G.secs===0 && !G.running){
+      hintHtml=`${ic('hand',12,'#5bc0de')} Tap two players to swap their starting positions`;
+    }
+    if(hintHtml){
+      const hint=document.createElement('div');
+      hint.style.cssText=`flex:0 0 auto;text-align:center;font-size:11px;font-weight:700;letter-spacing:.5px;color:${hintCol};background:${hintCol==='#e94560'?'rgba(233,69,96,.1)':'rgba(91,192,222,.1)'};border:1px solid ${hintCol==='#e94560'?'rgba(233,69,96,.3)':'rgba(91,192,222,.3)'};border-radius:8px;padding:6px 10px`;
+      hint.innerHTML=hintHtml;
+      rw.appendChild(hint);
+    }
   }
 
   // Build position-to-player mapping so we can look up positions by player index
@@ -4314,12 +4426,10 @@ function renderRoster(){
     const jersey=currentTeam?getPlayerNumber(currentTeam,avail[pIdx]):'';
     // Shirt with number ON it (rendered inside SVG so it's perfectly centred).
     el.innerHTML=`<div class="fc-shirt">${shirtSvg(jersey)}</div><div class="fc-label"><span class="fc-pos">${pos.label}</span><span class="fc-name">${fn(avail[pIdx])}</span><span class="fc-mins">${mins}′</span>${subInline}</div>`;
-    // Pre-kickoff: any player tappable to swap positions. After kickoff:
-    // only outfield players tappable (injury sub). GK isn't injury-subbed.
-    if((G.secs===0 && !G.running) || (!isGk && G.bench.length>0)){
-      el.onclick=()=>tapFieldPlayer(pIdx, isGk);
-      el.style.cursor='pointer';
-    }
+    // All field players tappable — the active dashboard mode (swap / keeper /
+    // injury) decides what the tap does. tapFieldPlayer guards GK per mode.
+    el.onclick=()=>tapFieldPlayer(pIdx, isGk);
+    el.style.cursor='pointer';
     pitch.appendChild(el);
   });
 
@@ -4394,10 +4504,14 @@ function renderRoster(){
       const replacesP=swapMap?swapMap[pIdx]:undefined;
       const takesPos=replacesP!==undefined?posForPlayer[replacesP]:null;
       const row=document.createElement('div');
-      const bgC=isNext?'#0a1a16':'#0a1628';
-      const borderC=isNext?'#00d4aa':'#1e2a45';
-      const glow=isNext?'box-shadow:0 0 8px rgba(0,212,170,.3);':'';
-      row.style.cssText=`display:flex;align-items:center;padding:5px 8px;background:${bgC};border:1.5px solid ${borderC};border-radius:7px;${glow}`;
+      // In injury mode (after the off-player is chosen) every bench pill is a
+      // tappable "bring on" target — highlight red and wire the click.
+      const isInjuryPick=(gameMode==='injury'&&injuryOffSel!==null);
+      const bgC=isInjuryPick?'#1a0a0e':(isNext?'#0a1a16':'#0a1628');
+      const borderC=isInjuryPick?'#e94560':(isNext?'#00d4aa':'#1e2a45');
+      const glow=isInjuryPick?'box-shadow:0 0 8px rgba(233,69,96,.3);':(isNext?'box-shadow:0 0 8px rgba(0,212,170,.3);':'');
+      row.style.cssText=`display:flex;align-items:center;padding:5px 8px;background:${bgC};border:1.5px solid ${borderC};border-radius:7px;${glow}${isInjuryPick?'cursor:pointer':''}`;
+      if(isInjuryPick) row.onclick=(e)=>{e.stopPropagation();tapBenchForInjury(pIdx);};
       const posBg=isNext?'#0d3320':'#2a1f0a';
       const posCol=isNext?'#00d4aa':'#f0a500';
       const posLabel=isNext&&takesPos?takesPos:'SUB';
