@@ -613,15 +613,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <button onclick="abandonGame()" aria-label="End game" title="End game" style="position:absolute;top:8px;left:10px;width:28px;height:28px;border-radius:50%;border:1px solid #444;background:none;color:#888;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
     <div style="display:flex;align-items:center;gap:10px">
       <span style="font-size:11px;color:#e94560;font-weight:800;letter-spacing:1px;line-height:1.15;text-align:center;white-space:nowrap" id="hLbl">1ST HALF</span>
-      <span style="font-size:13px;color:#888;font-weight:700" id="scoreUsLabel">US</span>
-      <button onclick="adjScore('us',-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #555;background:none;color:#888;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
-      <span style="font-size:40px;font-weight:800;color:#00d4aa;min-width:30px;text-align:center;font-variant-numeric:tabular-nums" id="scoreUs">0</span>
-      <button onclick="adjScore('us',1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #555;background:none;color:#888;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
-      <span style="color:#444;font-size:32px;font-weight:300;margin:0 4px">:</span>
-      <button onclick="adjScore('them',-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #555;background:none;color:#888;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
-      <span style="font-size:40px;font-weight:800;color:#e94560;min-width:30px;text-align:center;font-variant-numeric:tabular-nums" id="scoreThem">0</span>
-      <button onclick="adjScore('them',1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #555;background:none;color:#888;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
-      <span style="font-size:13px;color:#888;font-weight:700">THEM</span>
+      <!-- Score controls rendered per-sport by renderScore() — AFL gets goals/behinds. -->
+      <div id="scoreArea" style="display:flex;align-items:center;gap:6px"></div>
     </div>
   </div>
 
@@ -1993,12 +1986,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0.4-beta';
+const APP_VERSION='v2.0.5-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.0.5-beta':{
+    title:'AFL scoring (goals & behinds)',
+    items:[
+      'AFL games now score properly — separate GOAL (6) and BEHIND (1) buttons per team',
+      'Score shows the footy way: goals.behinds (total), e.g. 5.3 (33)',
+      'Goals still prompt for scorer + assist; − undoes the last score; match log shows goals vs behinds'
+    ]
+  },
   'v2.0.4-beta':{
     title:'AFL isometric oval + tidy-ups',
     items:[
@@ -3861,6 +3862,7 @@ function startGame(){
   G={half:1,secs:0,running:false,iv:null,raf:null,elapsedMs:0,lastTs:null,
     on:luOrd.slice(0,on),bench:luOrd.slice(on),
     gk:fmt.hasGk?gk1:null,pt:{},sd:[],ps:null,scoreUs:0,scoreThem:0,
+    glUs:0,bhUs:0,glThem:0,bhThem:0,   // AFL goals/behinds (total = goals*6 + behinds)
     pairs:rotPairs.map(p=>({on:[...p.on]})),pairIdx:0,oppFormation:curFormation,
     subStrategy:cfg.subStrategy||'fair', // chosen on the Settings screen
     subPlan:(cfg.subStrategy==='planned'&&cfg.subPlan)?JSON.parse(JSON.stringify(cfg.subPlan)):null,
@@ -3942,9 +3944,7 @@ function renderG(){
   }
 
   // Score
-  document.getElementById('scoreUs').textContent=G.scoreUs;
-  document.getElementById('scoreThem').textContent=G.scoreThem;
-  document.getElementById('scoreUsLabel').textContent=currentTeam?currentTeam.name.split(' ')[0].toUpperCase():'US';
+  renderScore();
 
   // Sub button state
   const subBtn=document.getElementById('subB');
@@ -3981,6 +3981,68 @@ function renderG(){
   _li();
 }
 
+// Score header — sport-aware. AFL gets goals/behinds; others a single tally.
+function renderScore(){
+  const area=document.getElementById('scoreArea');
+  if(!area||!G) return;
+  const teamName=currentTeam?currentTeam.name.split(' ')[0].toUpperCase():'US';
+  const isAfl=getSport(currentTeam).key==='afl';
+  const sBtn='width:28px;height:28px;border-radius:50%;border:1.5px solid #555;background:none;color:#888;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0';
+  if(isAfl){
+    const col=(who,colr)=>{
+      const gl=G[who==='us'?'glUs':'glThem']||0, bh=G[who==='us'?'bhUs':'bhThem']||0;
+      const lbl=who==='us'?teamName:'THEM';
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <span style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px">${lbl}</span>
+        <span style="font-size:26px;font-weight:800;color:${colr};font-variant-numeric:tabular-nums;line-height:1">${gl}.${bh}<span style="font-size:13px;color:#888;font-weight:700;margin-left:5px">(${gl*6+bh})</span></span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button onclick="aflScore('${who}','goal')" style="padding:3px 9px;border-radius:6px;border:1px solid #00d4aa;background:rgba(0,212,170,.14);color:#00d4aa;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.4px">GOAL</button>
+          <button onclick="aflScore('${who}','behind')" style="padding:3px 8px;border-radius:6px;border:1px solid #5bc0de;background:rgba(91,192,222,.12);color:#5bc0de;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.4px">BEH</button>
+          <button onclick="aflUndo('${who}')" title="Undo last score" style="width:22px;height:22px;border-radius:50%;border:1px solid #555;background:none;color:#888;font-size:14px;font-weight:700;cursor:pointer;line-height:1">−</button>
+        </div>
+      </div>`;
+    };
+    area.innerHTML=`${col('us','#00d4aa')}<span style="color:#444;font-size:24px;font-weight:300;align-self:flex-start;margin-top:18px">:</span>${col('them','#e94560')}`;
+  } else {
+    area.innerHTML=`
+      <span style="font-size:13px;color:#888;font-weight:700">${teamName}</span>
+      <button onclick="adjScore('us',-1)" style="${sBtn}">−</button>
+      <span style="font-size:40px;font-weight:800;color:#00d4aa;min-width:30px;text-align:center;font-variant-numeric:tabular-nums">${G.scoreUs}</span>
+      <button onclick="adjScore('us',1)" style="${sBtn}">+</button>
+      <span style="color:#444;font-size:32px;font-weight:300;margin:0 4px">:</span>
+      <button onclick="adjScore('them',-1)" style="${sBtn}">−</button>
+      <span style="font-size:40px;font-weight:800;color:#e94560;min-width:30px;text-align:center;font-variant-numeric:tabular-nums">${G.scoreThem}</span>
+      <button onclick="adjScore('them',1)" style="${sBtn}">+</button>
+      <span style="font-size:13px;color:#888;font-weight:700">THEM</span>`;
+  }
+  _li();
+}
+// AFL: add a goal (6) or behind (1). Goals prompt for scorer/assist.
+function aflScore(who,type){
+  if(!G)return;
+  const glK=who==='us'?'glUs':'glThem', bhK=who==='us'?'bhUs':'bhThem', sK=who==='us'?'scoreUs':'scoreThem';
+  G[glK]=G[glK]||0; G[bhK]=G[bhK]||0;
+  if(type==='goal') G[glK]++; else G[bhK]++;
+  G[sK]=G[glK]*6+G[bhK];
+  G.log.push({type:'goal',half:G.half,time:G.secs,who,afl:type});
+  if(who==='us'){ playGoalHorn(); if(type==='goal') promptScorer(G.log.length-1); }
+  renderScore();
+  saveActiveGame();
+}
+function aflUndo(who){
+  if(!G)return;
+  const glK=who==='us'?'glUs':'glThem', bhK=who==='us'?'bhUs':'bhThem', sK=who==='us'?'scoreUs':'scoreThem';
+  for(let i=G.log.length-1;i>=0;i--){
+    if(G.log[i].type==='goal'&&G.log[i].who===who){
+      if(G.log[i].afl==='behind') G[bhK]=Math.max(0,(G[bhK]||0)-1);
+      else G[glK]=Math.max(0,(G[glK]||0)-1);
+      G.log.splice(i,1); break;
+    }
+  }
+  G[sK]=(G[glK]||0)*6+(G[bhK]||0);
+  renderScore();
+  saveActiveGame();
+}
 function adjScore(who,d){
   if(!G)return;
   const key=who==='us'?'scoreUs':'scoreThem';
@@ -4002,7 +4064,7 @@ function adjScore(who,d){
       }
     }
   }
-  document.getElementById(who==='us'?'scoreUs':'scoreThem').textContent=G[key];
+  renderScore();
   saveActiveGame();
 }
 // Goal-picker overlay flow — two steps: who scored, then who assisted.
@@ -4580,10 +4642,13 @@ function showSum(){
 
   // Match details card
   const mc=document.getElementById('sumMatch');
+  const _isAflSum=getSport(currentTeam).key==='afl';
+  const usScore=_isAflSum?`${G.glUs||0}.${G.bhUs||0} <span style="font-size:18px;color:#888">(${G.scoreUs})</span>`:G.scoreUs;
+  const themScore=_isAflSum?`<span style="font-size:18px;color:#888">(${G.scoreThem})</span> ${G.glThem||0}.${G.bhThem||0}`:G.scoreThem;
   mc.innerHTML=`
     <div style="text-align:center;margin-bottom:12px">
       <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${dateStr}</div>
-      <div style="font-size:36px;font-weight:800;margin:4px 0"><span style="color:#00d4aa">${G.scoreUs}</span> <span style="color:#444">—</span> <span style="color:#e94560">${G.scoreThem}</span></div>
+      <div style="font-size:36px;font-weight:800;margin:4px 0"><span style="color:#00d4aa">${usScore}</span> <span style="color:#444">—</span> <span style="color:#e94560">${themScore}</span></div>
       <div style="font-size:13px;color:#666">${teamName} vs Opposition</div>
     </div>
     <div style="display:flex;gap:8px">
@@ -4629,12 +4694,16 @@ function showSum(){
       } else if(e.type==='gk'){
         icon=ic('target',14,'#e94560');detail=`GK: <span style="color:#e94560">${fn(e.off)}</span> ${ic('swap',12,'#444')} <span style="color:#e94560">${fn(e.on)}</span>`;
       } else if(e.type==='goal'){
-        icon=ic('goal',14,'#00d4aa');
+        icon=ic('goal',14,e.afl==='behind'?'#5bc0de':'#00d4aa');
         if(e.who==='us'){
-          detail=e.scorer?`<span style="color:#00d4aa">${fn(e.scorer)} scored</span>`:`<span style="color:#00d4aa">${teamName} goal!</span>`;
-          if(e.assist) detail+=`<span style="color:#5bc0de"> · assist ${fn(e.assist)}</span>`;
+          if(e.afl==='behind'){
+            detail=`<span style="color:#5bc0de">${teamName} behind</span>`;
+          } else {
+            detail=e.scorer?`<span style="color:#00d4aa">${fn(e.scorer)} scored${e.afl==='goal'?' (goal)':''}</span>`:`<span style="color:#00d4aa">${teamName} goal!</span>`;
+            if(e.assist) detail+=`<span style="color:#5bc0de"> · assist ${fn(e.assist)}</span>`;
+          }
         }else{
-          detail=`<span style="color:#e94560">Opposition goal</span>`;
+          detail=`<span style="color:#e94560">Opposition ${e.afl==='behind'?'behind':'goal'}</span>`;
         }
       } else if(e.type==='halftime'||e.type==='period_end'){
         icon=ic('pause',14,'#888');detail=`<span style="color:#888">${_logBreakName(e)} — ${e.scoreUs}-${e.scoreThem}</span>`;
@@ -4757,7 +4826,7 @@ function showMatchDetail(m){
       let icon='',detail='';
       if(e.type==='sub'){icon=ic('refresh',14,'#5bc0de');detail=`<span style="color:#f0a500">${fn(e.off)}</span> ${ic('swap',12,'#444')} <span style="color:#00d4aa">${fn(e.on)}</span>`;}
       else if(e.type==='gk'){icon=ic('target',14,'#e94560');detail=`GK: ${fn(e.off)} ${ic('swap',12,'#444')} ${fn(e.on)}`;}
-      else if(e.type==='goal'){icon=ic('goal',14,'#00d4aa');detail=e.who==='us'?(e.scorer?`${fn(e.scorer)} scored`:`${teamName} goal!`):'Opposition goal';if(e.who==='us'&&e.assist)detail+=` · assist ${fn(e.assist)}`;}
+      else if(e.type==='goal'){icon=ic('goal',14,e.afl==='behind'?'#5bc0de':'#00d4aa');detail=e.who==='us'?(e.afl==='behind'?`${teamName} behind`:(e.scorer?`${fn(e.scorer)} scored`:`${teamName} goal!`)):('Opposition '+(e.afl==='behind'?'behind':'goal'));if(e.who==='us'&&e.afl!=='behind'&&e.assist)detail+=` · assist ${fn(e.assist)}`;}
       else if(e.type==='halftime'||e.type==='period_end'){icon=ic('pause',14,'#888');detail=`${_logBreakName(e)} — ${e.scoreUs}-${e.scoreThem}`;}
       row.innerHTML=`<span style="width:52px;color:#666;font-variant-numeric:tabular-nums;flex-shrink:0">${timeStr}</span><span style="display:inline-flex;align-items:center">${icon}</span><span style="flex:1">${detail}</span>`;
       lc.appendChild(row);

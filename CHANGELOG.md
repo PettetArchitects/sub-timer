@@ -4,6 +4,27 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v2.0.5-beta — AFL scoring (goals & behinds)
+
+- 🏉 **Proper AFL scoring** — the score header is sport-aware. AFL teams get separate **GOAL (6)** and **BEHIND (1)** buttons per side; score shows the footy way **goals.behinds (total)** — e.g. `5.3 (33)`. **−** undoes the last score. Goals fire the scorer + assist picker; behinds don't. Match log + full-time summary distinguish goals from behinds. Soccer/netball keep the simple −/＋ tally.
+
+### Architecture notes
+- `G.glUs/bhUs/glThem/bhThem` track goals/behinds; `G.scoreUs/scoreThem` stay point totals (cloud save/history unchanged). `renderScore()` renders the score area per-sport from `renderG`. `aflScore(who,type)` logs `{type:'goal', afl:'goal'|'behind'}`; `aflUndo(who)` reverses the last.
+
+---
+
+## v2.0.4-beta — AFL isometric oval + tidy-ups
+
+- 🏉 AFL oval shown in **portrait isometric** (foreshortened tilted-ground look, cabinet projection — no egg), 18 players spaced cleanly with no overlap, smaller AFL tokens.
+- 🔢 Period call-out (Q1 / 1ST HALF / HALFTIME) moved to the **left of the score**.
+- 🧹 **Opponent-shape overlay removed** (parked until it's properly tested/useful).
+- ⏸️ Youngest AFL grades (Auskick/U9/U10) default to **subs-at-breaks**; toggle hint is now sport-aware.
+
+### Architecture notes
+- `.lu-pitch.np-afl` aspect `135/118` (length foreshortened ≈ ×0.72) does the uniform cabinet squash; `aflProject` identity, top-down SVG, %-tokens squash with the box. AFL formations portrait (length=y). Opp-marker block + `#oppFmtLbl`/`#oppFmtPicker` removed.
+
+---
+
 ## v2.0.3-beta — Subs at breaks only (netball rule)
 
 Requested by a netball coach: many netball comps only allow substitutions at the quarter/half breaks, not rolling mid-play.
