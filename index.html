@@ -457,6 +457,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <div id="nameCleanupBanner" style="display:none"></div>
     <div id="playerEditList"></div>
     <button class="btn btn-o btn-s" onclick="addPlayerField()" style="margin-top:8px;width:100%">+ Add Player</button>
+
+    <h2 style="margin-top:20px">Game Settings</h2>
+    <div style="font-size:12px;color:#888;margin-bottom:10px">Defaults for this team — applied every game, so you go straight to the pitch. Change these only when you need to.</div>
+    <div id="teamPrefsSection"></div>
+
     <button class="btn btn-g" onclick="saveAndBack()" style="margin-top:16px">Save Team</button>
   </div>
 </div>
@@ -475,7 +480,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <h2>Squad</h2>
     <div class="chip-grid" id="playerGrid"></div>
     <div id="countInfo" style="text-align:center;margin-top:12px;font-size:13px;color:#888">0 selected</div>
-    <button class="btn btn-r" id="nextBtn1" disabled onclick="goSettings()">Next: Settings →</button>
+    <button class="btn btn-g" id="nextBtn1" disabled onclick="startFromSquad()" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">Start Game <i data-lucide="timer" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i></button>
+    <button class="btn btn-o btn-s" onclick="goSettings()" style="margin-top:8px;width:100%;font-size:13px" title="Change formation, strategy, timings just for this game">Game options for today →</button>
+    <div style="text-align:center;margin-top:8px;font-size:11px;color:#666">Defaults come from the team — edit them under <strong style="color:#888">Edit Team → Game Settings</strong>.</div>
   </div>
 </div>
 
@@ -1831,12 +1838,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.10.3-beta';
+const APP_VERSION='v1.11-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.11-beta':{
+    title:'Straight to the pitch',
+    items:[
+      'Game settings (formation, sub strategy, half/quarter length, sub interval, players per sub) are now saved per team — set once under Edit Team → Game Settings',
+      'Tap Start → pick who’s here → Start Game goes straight to the pitch, using the team’s saved settings. No more settings screen every game.',
+      'Need to tweak just for today? A "Game options for today" link is still on the squad screen.',
+      'Change settings any time mid-game via the Edit Team button on the dashboard.'
+    ]
+  },
   'v1.10.3-beta':{
     title:'Settings page',
     items:[
@@ -2119,6 +2135,16 @@ function selectTeam(id){
     cfg.hm=f.defaultHalf;
     cfg.sf=f.defaultSub;
     cfg.sc=f.defaultSc;
+    cfg.subStrategy=cfg.subStrategy||'fair';
+    // Override with this team's saved game-settings prefs (set in the team
+    // editor). Lets us skip the settings screen and go straight to the pitch.
+    const p=getTeamPrefs(currentTeam);
+    if(p.formation && FORMATIONS[curFmt] && FORMATIONS[curFmt][p.formation]) curFormation=p.formation;
+    if(p.subStrategy) cfg.subStrategy=p.subStrategy;
+    if(p.hm) cfg.hm=p.hm;
+    if(p.sf) cfg.sf=p.sf;
+    if(p.sc) cfg.sc=p.sc;
+    cfg.subPlanStale=true;
   }
   document.getElementById('s1Title').textContent=currentTeam.name.toUpperCase();
   renderS1();
@@ -2296,6 +2322,93 @@ function renderEditTeam(){
     }
     c.appendChild(wrap);
   });
+  renderEditTeamPrefs();
+}
+
+// ===== Team-level game preferences (defaults applied every game) =====
+// Returns the team's prefs, lazily seeded from the format defaults so old
+// teams (saved before prefs existed) get sensible values.
+function getTeamPrefs(team){
+  const fmt=FORMATS[team.format]||FORMATS['7v7'];
+  if(!team.prefs) team.prefs={};
+  const p=team.prefs;
+  if(p.formation==null) p.formation=fmt.defaultFormation;
+  if(p.subStrategy==null) p.subStrategy='fair';
+  if(p.hm==null) p.hm=fmt.defaultHalf;
+  if(p.sf==null) p.sf=fmt.defaultSub;
+  if(p.sc==null) p.sc=fmt.defaultSc;
+  return p;
+}
+function renderEditTeamPrefs(){
+  const host=document.getElementById('teamPrefsSection');
+  if(!host||!editingTeam) return;
+  const fmt=FORMATS[editingTeam.format]||FORMATS['7v7'];
+  const p=getTeamPrefs(editingTeam);
+  const sport=getSport(editingTeam);
+  const isNb=sport.key==='netball';
+  const periodWord=isNb?'Quarter length':'Half length';
+  const periodUnit=isNb?'min / quarter':'min / half';
+  host.innerHTML='';
+  // --- Formation (skip for netball — fixed positions) ---
+  if(!isNb && FORMATIONS[editingTeam.format]){
+    const fLbl=document.createElement('div');
+    fLbl.style.cssText='font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin:0 0 6px';
+    fLbl.textContent='Formation';
+    host.appendChild(fLbl);
+    const fg=document.createElement('div');
+    fg.className='chip-grid';
+    fg.style.cssText='grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px';
+    Object.keys(FORMATIONS[editingTeam.format]).forEach(name=>{
+      const c=document.createElement('div');
+      c.className='chip'+(p.formation===name?' sel':'');
+      c.style.cssText='padding:9px 4px;font-size:13px;font-weight:700';
+      c.textContent=name;
+      c.onclick=()=>{ p.formation=name; renderEditTeamPrefs(); };
+      fg.appendChild(c);
+    });
+    host.appendChild(fg);
+  }
+  // --- Sub strategy ---
+  const sLbl=document.createElement('div');
+  sLbl.style.cssText='font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin:0 0 6px';
+  sLbl.textContent='Sub strategy';
+  host.appendChild(sLbl);
+  const sg=document.createElement('div');
+  sg.style.cssText='display:flex;flex-direction:column;gap:6px;margin-bottom:14px';
+  SUB_STRATEGIES.forEach(s=>{
+    const sel=p.subStrategy===s.key;
+    const c=document.createElement('div');
+    c.className='chip'+(sel?' sel':'');
+    c.style.cssText='padding:10px 12px;text-align:left;cursor:pointer';
+    c.innerHTML=`<div style="font-weight:800;font-size:13px;color:${sel?s.color:'#bbb'};margin-bottom:2px;display:flex;align-items:center;gap:6px">${ic(s.icon,13,sel?s.color:'#bbb')}${s.label}</div>
+      <div style="font-size:11px;color:#888;line-height:1.35;font-weight:500">${s.stance}</div>`;
+    c.onclick=()=>{ p.subStrategy=s.key; renderEditTeamPrefs(); };
+    sg.appendChild(c);
+  });
+  host.appendChild(sg);
+  // --- Steppers: period length, sub interval, players per sub ---
+  const stepRow=(label,key,min,max)=>{
+    const row=document.createElement('div');
+    row.className='set-row';
+    row.innerHTML=`<label>${label}</label>`;
+    const st=document.createElement('div');
+    st.className='stepper';
+    const dec=document.createElement('button'); dec.className='st-btn'; dec.textContent='−';
+    const val=document.createElement('div'); val.className='st-val'; val.textContent=p[key];
+    const inc=document.createElement('button'); inc.className='st-btn'; inc.textContent='+';
+    dec.onclick=()=>{ p[key]=Math.max(min,p[key]-1); renderEditTeamPrefs(); };
+    inc.onclick=()=>{ p[key]=Math.min(max,p[key]+1); renderEditTeamPrefs(); };
+    st.appendChild(dec); st.appendChild(val); st.appendChild(inc);
+    row.appendChild(st);
+    return row;
+  };
+  const pLbl=document.createElement('div');
+  pLbl.style.cssText='font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin:0 0 6px';
+  pLbl.textContent='Timing';
+  host.appendChild(pLbl);
+  host.appendChild(stepRow(periodWord+' ('+periodUnit+')','hm',4,60));
+  host.appendChild(stepRow('Sub every (mins)','sf',1,30));
+  host.appendChild(stepRow('Players per sub','sc',1,Math.max(1,fmt.onField-1)));
 }
 
 function addPlayerField(){
@@ -2589,6 +2702,14 @@ function renderS1(){
   document.getElementById('nextBtn1').disabled=n<minP;
 }
 
+// Fast path — skip the settings screen and go straight to the pitch using the
+// team's saved game-settings prefs (already loaded into cfg by selectTeam).
+function startFromSquad(){
+  avail=[...sel].map(i=>currentTeam.players[i]);
+  setDisplayNameList(avail);
+  cfg.subPlanStale=true;
+  quickStart();
+}
 function goSettings(){
   avail=[...sel].map(i=>currentTeam.players[i]);
   setDisplayNameList(avail);
@@ -3954,7 +4075,7 @@ function renderGameDash(){
   // Edit opens the positional-preference / team editor (not a tap-mode, so never "active").
   const edit=document.getElementById('gdEdit');
   if(edit){
-    edit.innerHTML=`${ic('pencil',17)}<span>Edit Players</span>`;
+    edit.innerHTML=`${ic('pencil',17)}<span>Edit Team</span>`;
     edit.className='gd-btn';
   }
   const undo=document.getElementById('gdUndo');
