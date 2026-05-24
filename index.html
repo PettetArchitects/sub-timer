@@ -744,18 +744,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <button class="btn btn-o" id="scorerSkipBtn" onclick="skipGoalStep()">Skip (no scorer recorded)</button>
   </div>
 </div>
-<div class="ov" id="htOv">
-  <div class="ab">
-    <h2 style="display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="pause" width="20" height="20" style="width:20px;height:20px;display:inline-flex"></i>HALFTIME</h2>
-    <p style="color:#aaa;margin-bottom:12px;font-size:14px">GK change</p>
-    <div id="htGkPicker" style="margin-bottom:12px;display:none">
-      <label style="display:block;font-size:11px;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">2nd Half Keeper</label>
-      <select id="htGk2Sel" onchange="updateHtGk(parseInt(this.value))" style="width:100%;background:#0a1628;color:#eee;border:1.5px solid #e94560;border-radius:8px;padding:10px;font-size:14px;font-weight:600;font-family:inherit;outline:none"></select>
-    </div>
-    <div id="htM"></div>
-    <button class="btn btn-g" onclick="confHT()" style="margin-top:16px;display:inline-flex;align-items:center;justify-content:center;gap:6px">Start 2nd Half <i data-lucide="play" width="14" height="14" style="width:14px;height:14px;display:inline-flex"></i></button>
-  </div>
-</div>
+<!-- Halftime is now handled inline on the game screen (no popup) — see advH()
+     / startNextPeriod() and the break branch in renderG(). -->
 
 <!-- ===== S5: SUMMARY ===== -->
 <div id="s5" class="scr">
@@ -1838,12 +1828,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.11-beta';
+const APP_VERSION='v1.11.1-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.11.1-beta':{
+    title:'Inline halftime',
+    items:[
+      'Halftime is no longer a popup — the game screen shows "HALF TIME" and the big button becomes "Start 2nd Half"',
+      'Swap or sub during the break right on the pitch, then one tap starts the next half',
+      'Change the keeper at the break with a normal Swap (tap the GK) — no separate halftime keeper picker'
+    ]
+  },
   'v1.11-beta':{
     title:'Straight to the pitch',
     items:[
@@ -3598,26 +3596,37 @@ function nxtST(){for(const t of subTs())if(!G.sd.includes(t))return t;return nul
 
 function renderG(){
   const _sport=getSport(currentTeam);
-  document.getElementById('hLbl').textContent=_sport.periodShort(G.half);
   const curMs=G.running&&G.lastTs?G.elapsedMs+(performance.now()-G.lastTs):G.elapsedMs;
   const ce=document.getElementById('clk');ce.textContent=fmtMs(curMs);
   ce.className='tmr-c';
-  const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
-  const ns=nxtST();
-  if(subBannerUp){ce.className='tmr-c sub-now';}
-  else if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}
   const ni=document.getElementById('nsi');
-  if(ns!==null&&G.bench.length>0){
-    const d=ns-G.secs;
-    ni.innerHTML=`Next sub at <span style="color:#00d4aa;font-weight:700">${fmt(ns)}</span>`;
-  } else if(!G.bench.length){
-    ni.textContent='No subs available';
-  } else {
-    ni.textContent='All subs done this half';
-  }
   const pb=document.getElementById('ppB');
-  pb.innerHTML=G.running?(ic('pause',21)+'<span>PAUSE</span>'):(ic('play',21)+'<span>START</span>');
-  pb.className=G.running?'gd-btn gd-pause':'gd-btn gd-go';
+  const ns=nxtST();
+  if(G.atBreak){
+    // Inline break — no popup. Coach can swap / sub, then tap to start next period.
+    const breakName=(_sport.breakLabels&&_sport.breakLabels[G.half])||'BREAK';
+    document.getElementById('hLbl').textContent=breakName;
+    ce.className='tmr-c warn';
+    const nextPeriod=G.half+1;
+    const startLbl=_sport.key==='netball'?`Start Q${nextPeriod}`:(nextPeriod===2?'Start 2nd Half':`Start Period ${nextPeriod}`);
+    ni.innerHTML=`<span style="color:#f0a500;font-weight:700">${breakName}</span> — swap or sub now if needed, then tap ${startLbl}`;
+    pb.innerHTML=ic('play',21)+`<span>${startLbl}</span>`;
+    pb.className='gd-btn gd-go';
+  } else {
+    document.getElementById('hLbl').textContent=_sport.periodShort(G.half);
+    const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
+    if(subBannerUp){ce.className='tmr-c sub-now';}
+    else if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}
+    if(ns!==null&&G.bench.length>0){
+      ni.innerHTML=`Next sub at <span style="color:#00d4aa;font-weight:700">${fmt(ns)}</span>`;
+    } else if(!G.bench.length){
+      ni.textContent='No subs available';
+    } else {
+      ni.textContent='All subs done this half';
+    }
+    pb.innerHTML=G.running?(ic('pause',21)+'<span>PAUSE</span>'):(ic('play',21)+'<span>START</span>');
+    pb.className=G.running?'gd-btn gd-pause':'gd-btn gd-go';
+  }
 
   // Score
   document.getElementById('scoreUs').textContent=G.scoreUs;
@@ -3790,6 +3799,8 @@ function closeGoalPicker(){
 function skipScorer(){ closeGoalPicker(); }
 
 function tog(){
+  // At a period break the primary button reads "Start 2nd Half" — begin it.
+  if(G.atBreak){ startNextPeriod(); return; }
   if(G.running){
     // Pause: accumulate elapsed, stop loop
     G.elapsedMs+=performance.now()-G.lastTs;G.lastTs=null;
@@ -4218,85 +4229,34 @@ function confInjury(outForGame){
   renderG();
 }
 
-function renderHtMsg(){
-  const m=document.getElementById('htM');m.innerHTML='';
-  const fmt=FORMATS[curFmt];
-  const sport=getSport(currentTeam);
-  if(sport.key==='soccer'&&fmt.hasGk && G.gk!==null && G.gk!==gk2){
-    const d=document.createElement('div');d.className='sm';
-    d.innerHTML=`<span style="color:#e94560;font-weight:700">GK ${fn(avail[G.gk])}</span><span style="color:#666;display:inline-flex;align-items:center">${ic('swap',13,'#666')}</span><span style="color:#e94560;font-weight:700">GK ${fn(avail[gk2])}</span>`;
-    m.appendChild(d);
-  }else if(sport.key==='soccer'&&fmt.hasGk){
-    m.innerHTML='<div style="color:#aaa;padding:8px">Same goalkeeper continues</div>';
-  }else if(sport.key==='netball'){
-    const next=G.half+1;
-    m.innerHTML=`<div style="color:#aaa;padding:8px">Tap Start Q${next} when ready. All 7 positions can be reshuffled at the break.</div>`;
-  }else{
-    m.innerHTML='<div style="color:#aaa;padding:8px">Halftime — break and switch ends</div>';
-  }
-  _li();
-}
-function updateHtGk(idx){gk2=idx;renderHtMsg();}
+// Period end — handled INLINE on the game screen now (no popup). We flag the
+// break; renderG() shows the break state (clock label + "Start 2nd Half"
+// button) and the coach can swap / sub on the pitch before starting the next
+// period. Keeper change at the break is just a normal Swap (tap the GK), so the
+// old halftime GK picker is gone.
 function advH(){
   if(G.running){G.elapsedMs+=performance.now()-G.lastTs;G.lastTs=null;cancelAnimationFrame(G.raf);G.raf=null;G.running=false;}
   const sport=getSport(currentTeam);
   // G.half holds the period number (1..N). After the final period, show summary.
   if(G.half<sport.periodCount){
-    const fmt=FORMATS[curFmt];
-    const picker=document.getElementById('htGkPicker');
-    // GK swap picker only shows for soccer halftime (between H1 and H2 specifically)
-    const isSoccerHalftime=sport.key==='soccer'&&fmt.hasGk;
-    if(isSoccerHalftime){
-      picker.style.display='';
-      const sel=document.getElementById('htGk2Sel');
-      sel.innerHTML='';
-      avail.forEach((n,i)=>{
-        const o=document.createElement('option');
-        o.value=i;o.textContent=fn(n);
-        if(gk2===i)o.selected=true;
-        sel.appendChild(o);
-      });
-    }else{
-      picker.style.display='none';
-    }
-    // Sport-aware break heading
-    const headingEl=document.querySelector('#htOv .ab h2');
-    if(headingEl){
-      const breakName=sport.breakLabels[G.half]||'BREAK';
-      headingEl.innerHTML=`<span style="display:inline-flex;align-items:center;justify-content:center;gap:8px">${ic('pause',20)}${breakName}</span>`;
-    }
-    // Sport-aware sub-line + button label
-    const startBtn=document.querySelector('#htOv .ab button.btn-g');
-    if(startBtn){
-      const nextPeriod=G.half+1;
-      const lbl=sport.key==='netball'?`Start Q${nextPeriod}`:(nextPeriod===2?'Start 2nd Half':`Start Period ${nextPeriod}`);
-      startBtn.innerHTML=`<span style="display:inline-flex;align-items:center;justify-content:center;gap:6px">${lbl}${ic('play',14)}</span>`;
-    }
-    renderHtMsg();
-    document.getElementById('htOv').classList.add('show');
+    G.atBreak=true;
+    if(navigator.vibrate)navigator.vibrate([200,100,200]);
+    try{playSubAlert();}catch(e){}
+    saveActiveGame();
+    renderG();
   }else showSum();
 }
-function confHT(){
-  document.getElementById('htOv').classList.remove('show');
-  const sport=getSport(currentTeam);
+// Tapping the primary button while at the break starts the next period.
+function startNextPeriod(){
+  if(!G||!G.atBreak)return;
   G.log.push({type:'period_end',period:G.half,time:G.secs,scoreUs:G.scoreUs,scoreThem:G.scoreThem});
-  const fmt=FORMATS[curFmt];
-  // Soccer halftime keeper swap (only between H1 and H2)
-  if(sport.key==='soccer'&&G.half===1&&fmt.hasGk && G.gk!==null && G.gk!==gk2){
-    const oldGk=G.gk;
-    G.log.push({type:'gk',half:2,time:0,off:avail[oldGk],on:avail[gk2]});
-    if(G.bench.includes(gk2)){
-      G.bench=G.bench.filter(p=>p!==gk2);
-      G.on=G.on.filter(p=>p!==oldGk);
-      G.on.unshift(gk2);G.bench.push(oldGk);
-    }else{
-      G.on=[gk2,...G.on.filter(p=>p!==gk2)];
-    }
-    G.gk=gk2;
-  }
   G.half++;
   G.secs=0;G.elapsedMs=0;G.lastTs=null;G.sd=[];G.pairIdx=0;
-  G.lastSub=null; // undo doesn't cross the period boundary
+  G.lastSub=null;   // undo doesn't cross the period boundary
+  G.atBreak=false;
+  // Kick off the next period straight away — one tap.
+  G.lastTs=performance.now();G.running=true;
+  G.raf=requestAnimationFrame(tickLoop);
   saveActiveGame();
   renderG();
 }
