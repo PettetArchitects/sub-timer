@@ -4,6 +4,18 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v2.0.2-beta — Equal game-time helper
+
+Inspired by the grassroots rule of thumb ("divide the total game time by the number of players and sub that often" — Just Play's substitutions guide).
+
+- ⚖️ **Equal game-time suggestion** on the squad screen — once you've marked who's here, it calculates the sub interval that shares minutes evenly across the squad that turned up, and shows it with a one-tap **"USE"** button. Recalculates live as you toggle availability.
+- ⏱️ **Projected minutes per player** ("~X min each over Y min") so a coach can see the fair-play split before kickoff.
+
+### Architecture notes
+- `renderEqualTimeHint(n, onField)` in `renderS1()`: `totalGame = cfg.hm × periodCount`; `suggested = round(totalGame × cfg.sc / n)` (matches the guide's example: 6 players, 36 min → 6 min); `perPlayer = round(onField × totalGame / n)`. Shown only when `n > onField` (i.e. there are subs). `applyEqualTime(i)` sets `cfg.sf` for this match (per-game, not a saved team pref). Confirms with a ✓ once the interval matches.
+
+---
+
 ## v2.0.1-beta — Sample squad + AFL isometric pitch
 
 - 👥 **Fill a sample squad** — a button in the team editor drops in a generic roster sized to the format (on-field + ~30% bench) with names, jersey numbers and a spread of position tags, so a brand-new team can start a game and try the app immediately. Won't overwrite real players (tops up to a playable count); names a still-unnamed team automatically.
