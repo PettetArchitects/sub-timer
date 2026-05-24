@@ -606,26 +606,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <div id="nsi" style="margin-top:4px;font-size:14px;color:#888;font-weight:600;letter-spacing:.3px"></div>
   </div>
 
-  <!-- Formation picker (inline) -->
-  <div id="fmtRow" style="text-align:center;flex-shrink:0;padding:0 0 4px;display:flex;justify-content:center;gap:6px;align-items:center;flex-wrap:wrap">
+  <!-- Pitch — fills the middle, flexes to whatever space is left. -->
+  <div id="pitchMid" style="flex:1;min-height:0;overflow:hidden;padding:6px 14px 2px;display:flex;flex-direction:column"></div>
+
+  <!-- Formation / strategy / sound pills + the contextual tap-tip — one combined
+       band just above the bench. Tapping a pill opens its picker below. -->
+  <div id="fmtRow" style="flex-shrink:0;padding:4px 12px 0;display:flex;justify-content:center;gap:6px 8px;align-items:center;flex-wrap:wrap">
     <span id="fmtLbl" onclick="toggleGameFormation()" style="font-size:12px;color:#888;font-weight:700;letter-spacing:1px;cursor:pointer;padding:4px 10px;border:1px solid #333;border-radius:12px;display:inline-block"></span>
     <span id="fmtVs" style="font-size:10px;color:#444">vs</span>
     <span id="oppFmtLbl" onclick="toggleOppFormation()" style="font-size:12px;color:#888;font-weight:700;letter-spacing:1px;cursor:pointer;padding:4px 10px;border:1px dashed #444;border-radius:12px;display:inline-block">OPP: ?</span>
     <span id="subStratLbl" onclick="changeSubStrategy()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:none">Subs</span>
     <span id="soundPackLbl" onclick="openSoundPicker()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:inline-block" title="Choose sub-alert sound">Sound</span>
+    <!-- Contextual tip — rendered inline here by renderRoster (no longer a banner). -->
+    <span id="modeHint" style="display:inline-flex;align-items:center"></span>
   </div>
-  <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:0 12px 6px">
+  <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:4px 12px 6px">
     <div id="gameFmtGrid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center"></div>
   </div>
-  <div id="oppFmtPicker" style="display:none;flex-shrink:0;padding:0 12px 6px">
+  <div id="oppFmtPicker" style="display:none;flex-shrink:0;padding:4px 12px 6px">
     <div id="oppFmtGrid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center"></div>
   </div>
-
-  <!-- Pitch — fills the middle, flexes to whatever space is left. -->
-  <div id="pitchMid" style="flex:1;min-height:0;overflow:hidden;padding:6px 14px 2px;display:flex;flex-direction:column"></div>
-
-  <!-- Mode hint — what tapping a player does right now. -->
-  <div id="modeHint" style="flex-shrink:0;padding:2px 12px 0"></div>
 
   <!-- Subs coming on — sits just above the bottom control bar (clear of the
        pitch so it never overlaps the forward line / field tokens). -->
@@ -1821,12 +1821,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v1.10.1-beta';
+const APP_VERSION='v1.10.2-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v1.10.2-beta':{
+    title:'Tidier game screen',
+    items:[
+      'Formation / opponent / sub-strategy / sound pills now share one row with the tap-tip, just above the bench',
+      'Cleared the pills off the top so the pitch gets more vertical space',
+      'Shorter, tidier tap-tip wording'
+    ]
+  },
   'v1.10.1-beta':{
     title:'Assists + bench placement',
     items:[
@@ -4435,22 +4443,22 @@ function renderRoster(){
   // ===== BENCH (subs coming on) — rendered at the TOP =====
   renderBenchInto(benchTop, swapMap, posForPlayer);
 
-  // ===== MODE HINT — what tapping a player does right now (above the bar) =====
+  // ===== MODE HINT — what tapping a player does right now. Rendered inline as
+  // a tinted chip inside the formation/strategy pill row (#modeHint span). =====
   if(G && hintC){
     let hintHtml=null, hintCol='#5bc0de';
     if(gameMode==='injury'){
       if(injuryOffSel!==null){ hintCol='#e94560'; hintHtml=`${ic('arrow-down',12,'#e94560')} ${fn(avail[injuryOffSel])} off — tap a bench player to bring on`; }
       else { hintCol='#e94560'; hintHtml=`${ic('bandage',12,'#e94560')} Tap the injured player`; }
     } else if(fieldSwapSel!==null){
-      hintCol='#fff'; hintHtml=`${ic('move',12,'#fff')} Tap another player to swap (tap the keeper to change GK)`;
+      hintCol='#fff'; hintHtml=`${ic('move',12,'#fff')} Tap another to swap (incl. keeper)`;
     } else {
-      hintHtml=`${ic('hand',12,'#5bc0de')} Tap two players to swap — including the keeper to change GK`;
+      hintHtml=`${ic('hand',12,'#5bc0de')} Tap two to swap (incl. keeper)`;
     }
     if(hintHtml){
-      const hint=document.createElement('div');
-      hint.style.cssText=`text-align:center;font-size:11px;font-weight:700;letter-spacing:.5px;color:${hintCol};background:${hintCol==='#e94560'?'rgba(233,69,96,.1)':'rgba(91,192,222,.1)'};border:1px solid ${hintCol==='#e94560'?'rgba(233,69,96,.3)':'rgba(91,192,222,.3)'};border-radius:8px;padding:6px 10px`;
-      hint.innerHTML=hintHtml;
-      hintC.appendChild(hint);
+      const tintBg=hintCol==='#e94560'?'rgba(233,69,96,.1)':(hintCol==='#fff'?'rgba(255,255,255,.08)':'rgba(91,192,222,.1)');
+      const tintBd=hintCol==='#e94560'?'rgba(233,69,96,.35)':(hintCol==='#fff'?'rgba(255,255,255,.25)':'rgba(91,192,222,.35)');
+      hintC.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${hintCol};background:${tintBg};border:1px solid ${tintBd};border-radius:12px;padding:4px 10px">${hintHtml}</span>`;
     }
   }
 
