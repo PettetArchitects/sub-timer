@@ -1794,7 +1794,10 @@ function aflProject(wx,wy){
 function aflWorld(pos){ return aflView==='landscape'?{x:pos.y,y:pos.x}:{x:pos.x,y:pos.y}; }
 function toggleAflView(){ aflView=aflView==='landscape'?'portrait':'landscape'; try{localStorage.setItem('aflView',aflView);}catch(e){} renderG(); }
 function aflPitchSvg(){
-  const TILT=AFL_TILT, DEPTH_AXIS=aflDepth();
+  // Portrait uses the soccer rotateX perspective plane → draw the oval FLAT here
+  // (TILT 90 = identity) and let CSS tilt it. Landscape bakes the cabinet tilt.
+  const landscape=aflView==='landscape';
+  const TILT=landscape?AFL_TILT:90, DEPTH_AXIS=landscape?'y':'x';
   const FIELD_LEN_M=165, FIELD_WID_M=135;
   const along_len=m=>(m/FIELD_LEN_M)*100, along_wid=m=>(m/FIELD_WID_M)*100;
   function tiltPt(wx,wy){ const c=Math.cos((90-TILT)*Math.PI/180);
@@ -2000,12 +2003,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0.7-beta';
+const APP_VERSION='v2.0.8-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.0.8-beta':{
+    title:'AFL pitch — real 3D perspective',
+    items:[
+      'AFL portrait oval now uses the same 3D perspective tilt as the soccer pitch — the ground clearly rakes back (near end bigger, far end smaller)',
+      'Toggle to Landscape for the wide flat-oval view'
+    ]
+  },
   'v2.0.7-beta':{
     title:'AFL pitch view toggle',
     items:[
@@ -4982,14 +4992,22 @@ function renderRoster(){
   const _gSport=getSport(currentTeam);
   const _isAfl=_gSport.key==='afl';
   const _isNb=_gSport.key==='netball';
-  const _topDown=_isNb||_isAfl;   // top-down sports: tokens use raw x/y%, no perspective
+  // Netball + AFL-landscape skip the rotateX perspective plane (no pitchPt dims read).
+  // Soccer + AFL-portrait use the rotateX perspective (pitchPt).
+  const _aflLand=_isAfl&&aflView==='landscape';
+  const _noPersp=_isNb||_aflLand;
   pitch.className='lu-pitch'+(_isNb?' np-netball':'')+(_isAfl?' np-afl':'');
   pitch.style.cssText='width:100%;border-radius:6px';
   if(_isNb){
     pitch.innerHTML=`<div class="pitch-lines"></div><div class="nb-third nb-third-1"></div><div class="nb-third nb-third-2"></div><div class="nb-circle-top"></div><div class="nb-circle-bot"></div><div class="nb-centre-circle"></div>`;
   } else if(_isAfl){
-    pitch.style.aspectRatio=(aflView==='landscape')?'165 / 135':'135 / 165';  // wide vs tall by view
-    pitch.innerHTML=aflPitchSvg();
+    if(aflView==='landscape'){
+      pitch.style.aspectRatio='165 / 135';      // wide cabinet oval
+      pitch.innerHTML=aflPitchSvg();
+    } else {
+      pitch.style.aspectRatio='135 / 165';      // tall oval, tilted via the rotateX plane (like soccer)
+      pitch.innerHTML=`<div class="lu-plane">${aflPitchSvg()}</div>`;
+    }
   } else {
     pitch.innerHTML=`<div class="lu-plane">${SOCCER_PITCH_SVG}</div>`;
   }
@@ -5001,7 +5019,7 @@ function renderRoster(){
   pitchFlex.className='pitch-flex';
   pitchFlex.appendChild(pitch);
   pitchMid.appendChild(pitchFlex);
-  if(!_topDown){
+  if(!_noPersp){
     _pitchDims={w:pitch.clientWidth, h:pitch.clientHeight};
     // First-paint race: if the pitch hasn't been laid out yet (cw or ch is 0),
     // schedule a re-render on next frame so tokens land in the right place.
@@ -5026,9 +5044,9 @@ function renderRoster(){
     el.className='fc '+(isGk?'fc-gk':'fc-on')+(isOff?' fc-off':'')+(isSwapSel?' fc-sel':'');
     const _adj=adjustY(pos,isGk);
     let _proj;
-    if(_isAfl){ const _w=aflWorld(_adj); _proj=aflProject(_w.x,_w.y); }
-    else if(_isNb){ _proj={x:_adj.x,y:_adj.y}; }
-    else { _proj=pitchPt(_adj.x,_adj.y); }
+    if(_isNb){ _proj={x:_adj.x,y:_adj.y}; }
+    else if(_aflLand){ const _w=aflWorld(_adj); _proj=aflProject(_w.x,_w.y); }
+    else { _proj=pitchPt(_adj.x,_adj.y); }   // soccer + AFL portrait (rotateX perspective)
     el.style.cssText=`left:${_proj.x}%;top:${_proj.y}%;position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center`;
     // Sub indicator sits inline in the name pill, to the right with the arrow.
     const subInline=isOff&&replacedBy!==null?`<span class="fc-mins" style="color:#22c55e">↑${fn(avail[replacedBy])}</span>`:'';
