@@ -6,7 +6,7 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ## v1.10.1-beta — Assists + bench placement
 
-- 🅰️ **Assists on goals** — tagging a goal is now a two-step picker: who scored, then who assisted (or "No assist"). The scorer is excluded from the assist list, and the step is skipped automatically if no one else is available. Assists show in both the live timeline and the saved match-history log (`X scored · assist Y`).
+- 🅰️ **Assists on goals** — tagging a goal is now a two-step picker: who scored, then who assisted (or "No assist"). The assist list is **on-field players only** (a benched player can't set up a goal) with the scorer excluded; the step is skipped automatically if no one else is on the field. Assists show in both the live timeline and the saved match-history log (`X scored · assist Y`).
 - 🪑 **Bench moved above the control bar** — the subs-coming-on strip now sits just above the bottom buttons instead of at the very top, so it no longer overlaps the pitch / forward line. Game-screen order is now: header → clock → formation → **pitch** → mode hint → **bench** → sub banner → bottom bar.
 
 ### Architecture notes

@@ -1830,7 +1830,7 @@ const CHANGELOG_DATA={
   'v1.10.1-beta':{
     title:'Assists + bench placement',
     items:[
-      'Log who assisted each goal — after picking the scorer, tap who set it up (or "No assist"). Shows in the match log alongside the scorer.',
+      'Log who assisted each goal — after picking the scorer, tap who set it up (on-field players only, or "No assist"). Shows in the match log alongside the scorer.',
       'Subs-coming-on moved to just above the bottom control bar so it no longer overlaps the field / forward line',
       'Assists appear in both the live timeline and saved match history'
     ]
@@ -3582,10 +3582,13 @@ function renderGoalPicker(){
   document.getElementById('scorerSkipBtn').textContent=isAssist?'No assist':'Skip (no scorer recorded)';
   const g=document.getElementById('scorerGrid');
   g.innerHTML='';
-  // Show on-field players first (most likely), then bench under a separator.
+  // Scorer step: on-field players first, then bench under a separator (a player
+  // can be subbed off before you tag the goal). Assist step: ON-FIELD ONLY — a
+  // benched player can't set up a goal, so the bench is omitted entirely.
   const onField=G.on||[];
   const bench=G.bench||[];
-  [...onField,null,...bench].forEach(pIdx=>{
+  const list=isAssist ? [...onField] : [...onField,null,...bench];
+  list.forEach(pIdx=>{
     if(pIdx===null){
       if(bench.length){
         const sep=document.createElement('div');
@@ -3615,8 +3618,9 @@ function chooseScorer(name){
   }
   _goalScorer=name;
   _goalStep='assist';
-  // If there's nobody else who could have assisted, just finish here.
-  const others=[...(G.on||[]),...(G.bench||[])].filter(pIdx=>avail[pIdx]!==name);
+  // Only ON-FIELD team-mates can have assisted. If none remain (e.g. the
+  // scorer is the only one tagged on field), skip the assist step.
+  const others=(G.on||[]).filter(pIdx=>avail[pIdx]!==name);
   if(!others.length){ closeGoalPicker(); return; }
   renderGoalPicker();
 }
