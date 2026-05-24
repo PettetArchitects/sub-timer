@@ -1508,7 +1508,7 @@ let editingTeam=null;
 let sel=new Set();
 let curFmt='7v7';
 let curFormation='2-3-1';
-let cfg={hm:20,sf:5,sc:2,subStrategy:'fair'};
+let cfg={hm:20,sf:5,sc:2,subStrategy:'fair',breaksOnly:false};
 let avail=[],luOrd=[],swI=null,gk1=null,gk2=null;
 let rotPairs=[]; // [[onFieldIdx,benchIdx], ...] — paired rotation groups
 let pairSel=null; // for re-pairing: {pairIdx, slot:'on'|'bench'}
@@ -1981,12 +1981,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0.2-beta';
+const APP_VERSION='v2.0.3-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.0.3-beta':{
+    title:'Subs at breaks only',
+    items:[
+      'New "Subs at breaks only" team setting — no rolling mid-play subs, rotate only at quarter/half breaks (standard netball rule). On by default for netball.',
+      'In this mode the game screen shows "Subs at quarter break" and the rotation is applied when you start the next period'
+    ]
+  },
   'v2.0.2-beta':{
     title:'Equal game-time helper',
     items:[
@@ -2333,6 +2340,7 @@ function selectTeam(id){
     if(p.hm) cfg.hm=p.hm;
     if(p.sf) cfg.sf=p.sf;
     if(p.sc) cfg.sc=p.sc;
+    cfg.breaksOnly=!!p.breaksOnly;
     cfg.subPlanStale=true;
   }
   document.getElementById('s1Title').textContent=currentTeam.name.toUpperCase();
@@ -2526,6 +2534,9 @@ function getTeamPrefs(team){
   if(p.hm==null) p.hm=fmt.defaultHalf;
   if(p.sf==null) p.sf=fmt.defaultSub;
   if(p.sc==null) p.sc=fmt.defaultSc;
+  // Subs only at quarter/half breaks (no rolling mid-play subs). Default ON for
+  // netball — that's the traditional rule — and OFF for soccer/AFL.
+  if(p.breaksOnly==null) p.breaksOnly=(fmt.sport==='netball');
   return p;
 }
 function renderEditTeamPrefs(){
@@ -2598,6 +2609,20 @@ function renderEditTeamPrefs(){
   host.appendChild(stepRow(periodWord+' ('+periodUnit+')','hm',4,60));
   host.appendChild(stepRow('Sub every (mins)','sf',1,30));
   host.appendChild(stepRow('Players per sub','sc',1,Math.max(1,fmt.onField-1)));
+  // --- Subs at breaks only (no rolling mid-play subs) ---
+  const periodName=isNb?'quarter':'period';
+  const boRow=document.createElement('div');
+  boRow.className='set-row';
+  boRow.style.cssText='align-items:flex-start';
+  boRow.innerHTML=`<label style="flex:1;min-width:0">Subs at breaks only<br><span style="font-size:11px;color:#888;font-weight:500">No rolling subs — rotate only at ${periodName} breaks. (Standard netball rule.)</span></label>`;
+  const tog=document.createElement('button');
+  tog.type='button';
+  const on=!!p.breaksOnly;
+  tog.style.cssText=`flex-shrink:0;width:52px;height:30px;border-radius:15px;border:1.5px solid ${on?'#00d4aa':'#2a3550'};background:${on?'#00d4aa':'#0a1628'};position:relative;cursor:pointer;transition:all .15s;margin-top:2px`;
+  tog.innerHTML=`<span style="position:absolute;top:2px;${on?'right:2px':'left:2px'};width:22px;height:22px;border-radius:50%;background:${on?'#0a1628':'#666'};transition:all .15s"></span>`;
+  tog.onclick=()=>{ p.breaksOnly=!p.breaksOnly; renderEditTeamPrefs(); };
+  boRow.appendChild(tog);
+  host.appendChild(boRow);
 }
 
 // One-tap sample roster so a new team can start a game immediately to try the
@@ -2939,16 +2964,20 @@ function renderEqualTimeHint(n, onField){
   const suggested=Math.max(1, Math.round(totalGame*sc/n));
   const perPlayer=Math.round(onField*totalGame/n);      // ≈ minutes each
   const isSet=(cfg.sf===suggested);
+  const periodName=(getSport(currentTeam).key==='netball'||getSport(currentTeam).key==='afl')?'quarter':'period';
+  // In breaks-only mode there are no rolling subs — rotation happens at the
+  // break, so the interval suggestion doesn't apply; just show the fair share.
+  const action=cfg.breaksOnly
+    ? `Rotate at each ${periodName} break for fair time`
+    : (isSet
+        ? `Subbing every <strong style="color:#00d4aa">${cfg.sf} min</strong> ✓`
+        : `Suggested: sub every <strong style="color:#eee">${suggested} min</strong> <button onclick="applyEqualTime(${suggested})" style="margin-left:6px;background:#00d4aa;color:#0a1628;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px">USE ${suggested}′</button>`);
   host.innerHTML=`
     <div style="display:inline-flex;flex-direction:column;gap:6px;align-items:center;background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.3);border-radius:10px;padding:10px 14px;max-width:100%">
       <div style="font-size:12px;color:#bbb;line-height:1.4">
         <span style="color:#00d4aa;font-weight:700">⚖ Equal game time</span> · ~<strong style="color:#eee">${perPlayer} min</strong> each over ${totalGame} min
       </div>
-      <div style="font-size:12px;color:#888">
-        ${isSet
-          ? `Subbing every <strong style="color:#00d4aa">${cfg.sf} min</strong> ✓`
-          : `Suggested: sub every <strong style="color:#eee">${suggested} min</strong> <button onclick="applyEqualTime(${suggested})" style="margin-left:6px;background:#00d4aa;color:#0a1628;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px">USE ${suggested}′</button>`}
-      </div>
+      <div style="font-size:12px;color:#888">${action}</div>
     </div>`;
 }
 function applyEqualTime(interval){
@@ -3872,8 +3901,13 @@ function renderG(){
     document.getElementById('hLbl').textContent=_sport.periodShort(G.half);
     const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
     if(subBannerUp){ce.className='tmr-c sub-now';}
-    else if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}
-    if(ns!==null&&G.bench.length>0){
+    else if(!cfg.breaksOnly&&ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}
+    if(cfg.breaksOnly){
+      // Breaks-only mode (e.g. netball): rotate at the quarter/half break, no rolling subs.
+      const brk=(_sport.key==='netball'||_sport.key==='afl')?'quarter break':'the break';
+      ni.innerHTML=G.bench.length?`${ic('refresh',12,'#888')} Subs at ${brk}`:'No subs available';
+      ni.style.display='inline-flex'; ni.style.alignItems='center'; ni.style.gap='5px'; ni.style.justifyContent='center';
+    } else if(ns!==null&&G.bench.length>0){
       ni.innerHTML=`Next sub at <span style="color:#00d4aa;font-weight:700">${fmt(ns)}</span>`;
     } else if(!G.bench.length){
       ni.textContent='No subs available';
@@ -4072,7 +4106,7 @@ function tickLoop(now){
     G.secs++;
     G.on.forEach(p=>G.pt[avail[p]]++);
     const ns=nxtST();
-    if(ns!==null&&G.secs>=ns&&G.bench.length>0){
+    if(!cfg.breaksOnly&&ns!==null&&G.secs>=ns&&G.bench.length>0){
       G.sd.push(ns);
       // Manual strategy: don't auto-pop the sub banner — coach taps SUB when they want
       if(G.subStrategy!=='manual')trigSub();
@@ -4089,7 +4123,7 @@ function tickLoop(now){
   ce.className='tmr-c';
   const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
   if(subBannerUp){ce.className='tmr-c sub-now';}
-  else{const ns=nxtST();if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}}
+  else if(!cfg.breaksOnly){const ns=nxtST();if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}}
   G.raf=requestAnimationFrame(tickLoop);
 }
 

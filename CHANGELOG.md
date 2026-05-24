@@ -4,6 +4,20 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v2.0.3-beta — Subs at breaks only (netball rule)
+
+Requested by a netball coach: many netball comps only allow substitutions at the quarter/half breaks, not rolling mid-play.
+
+- ⏸️ **"Subs at breaks only"** toggle in Edit Team → Game Settings. When on, there are **no rolling mid-play subs** — the game screen shows "Subs at quarter break" instead of a countdown, and the recommended rotation is applied when you tap Start (next period). **Default ON for netball**, off for soccer/AFL.
+- The manual **SUB** and **Injury** buttons still work mid-play (for injuries etc.) — only the automatic prompts are suppressed.
+- The squad-screen equal-time helper adapts: in breaks-only mode it says "rotate at each break for fair time" instead of suggesting an interval.
+
+### Architecture notes
+- `team.prefs.breaksOnly` (seeded `true` for netball in `getTeamPrefs`), loaded into `cfg.breaksOnly` in `selectTeam`. Toggle rendered in `renderEditTeamPrefs()`.
+- `tickLoop` skips the auto-sub trigger and the clock warn/alert colouring when `cfg.breaksOnly`. `renderG()` shows a "Subs at the break" line. Break rotation is handled by the existing `advH()` (applies the recommended swap at the period boundary for fair/paired).
+
+---
+
 ## v2.0.2-beta — Equal game-time helper
 
 Inspired by the grassroots rule of thumb ("divide the total game time by the number of players and sub that often" — Just Play's substitutions guide).
