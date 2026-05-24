@@ -203,12 +203,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    the aspect ratio (the classic "fit aspect box in a flex cell" trick). */
 .pitch-flex{flex:1 1 0;min-height:0;position:relative}
 .lu-pitch{position:absolute;inset:0;margin:auto;aspect-ratio:105/80;max-width:100%;max-height:100%;background:transparent;border:none;overflow:visible;perspective:1500px;perspective-origin:50% 100%}
-/* AFL oval — isometric view: the 165 m length is foreshortened (≈ sin 58° of a
-   tilted-back ground) so the oval reads as a 3D ground viewed at an angle, not
-   flat top-down. Uniform vertical squash = cabinet projection (no "egg"); the
-   SVG markings and the %-positioned player tokens both foreshorten with it
-   while the shirts stay upright. 135 / (165·0.85) ≈ 135/140. */
-.lu-pitch.np-afl{aspect-ratio:135/140}
+/* AFL oval — portrait isometric: the 165 m length is foreshortened well below a
+   flat top-down so it clearly reads as a tilted-back ground (cabinet projection,
+   no "egg"). 135 wide / ~118 (≈ 165·0.72) gives a distinctly raked oval. */
+.lu-pitch.np-afl{aspect-ratio:135/118}
 .lu-plane{position:absolute;left:0;right:0;bottom:0;height:240%;transform-origin:50% 100%;transform:rotateX(45deg)}
 .lu-plane svg{width:100%;height:100%;position:absolute;inset:0}
 .lu-tokens{position:absolute;inset:0;pointer-events:none}
@@ -220,6 +218,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    below the shirt, a single label pill with [POS] [NAME] [mins] [↑sub] inline. */
 .fc-shirt{position:relative;width:44px;height:48px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
 @media(min-width:768px){.fc-shirt{width:52px;height:56px}}
+/* AFL packs 12–18 players on the oval — smaller tokens so they don't overlap. */
+.lu-pitch.np-afl .fc-shirt{width:32px;height:36px}
+.lu-pitch.np-afl .fc-shirt-num{font-size:11px}
+.lu-pitch.np-afl .fc-label{padding:1px 4px;gap:3px;margin-top:2px}
+.lu-pitch.np-afl .fc-pos{font-size:8px;min-width:11px;padding:1px 3px}
+.lu-pitch.np-afl .fc-name{font-size:9px;letter-spacing:.2px}
+.lu-pitch.np-afl .fc-mins{font-size:8px;margin-left:3px}
+@media(min-width:768px){.lu-pitch.np-afl .fc-shirt{width:38px;height:42px}.lu-pitch.np-afl .fc-shirt-num{font-size:13px}.lu-pitch.np-afl .fc-name{font-size:10px}}
 .fc-shirt svg{width:100%;height:100%}
 .fc-shirt-num{position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);font-size:14px;font-weight:900;color:currentColor;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 @media(min-width:768px){.fc-shirt-num{font-size:17px}}
@@ -605,8 +611,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <!-- Top bar: score centred + abandon-game button -->
   <div style="display:flex;flex-direction:column;align-items:center;padding:10px 12px 6px;background:#16213e;border-bottom:1px solid #333;flex-shrink:0;position:relative">
     <button onclick="abandonGame()" aria-label="End game" title="End game" style="position:absolute;top:8px;left:10px;width:28px;height:28px;border-radius:50%;border:1px solid #444;background:none;color:#888;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
-    <span style="font-size:10px;color:#e94560;font-weight:700;letter-spacing:1.5px;margin-bottom:4px" id="hLbl">1ST HALF</span>
-    <div style="display:flex;align-items:center;gap:6px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:#e94560;font-weight:800;letter-spacing:1px;line-height:1.15;text-align:center;white-space:nowrap" id="hLbl">1ST HALF</span>
       <span style="font-size:13px;color:#888;font-weight:700" id="scoreUsLabel">US</span>
       <button onclick="adjScore('us',-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #555;background:none;color:#888;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
       <span style="font-size:40px;font-weight:800;color:#00d4aa;min-width:30px;text-align:center;font-variant-numeric:tabular-nums" id="scoreUs">0</span>
@@ -631,15 +637,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <!-- Formation / strategy / sound pills + the contextual tap-tip — one combined
        band just above the bench. Tapping a pill opens its picker below. -->
   <div id="fmtRow" style="flex-shrink:0;padding:4px 12px 0;display:flex;justify-content:center;gap:6px 8px;align-items:center;flex-wrap:wrap">
-    <!-- Our formation moved to the bottom control bar (Formation button). -->
-    <span id="oppFmtLbl" onclick="toggleOppFormation()" style="font-size:12px;color:#888;font-weight:700;letter-spacing:1px;cursor:pointer;padding:4px 10px;border:1px dashed #444;border-radius:12px;display:inline-block">OPP: ?</span>
+    <!-- Our formation lives on the bottom control bar (Formation button).
+         Opponent overlay parked until it's properly tested. -->
     <span id="subStratLbl" onclick="changeSubStrategy()" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px;cursor:pointer;padding:4px 8px;border:1px solid #333;border-radius:12px;display:none">Subs</span>
-    <!-- Sound pack moved to app Settings (home gear). -->
     <!-- Contextual tip — rendered inline here by renderRoster (no longer a banner). -->
     <span id="modeHint" style="display:inline-flex;align-items:center"></span>
-  </div>
-  <div id="oppFmtPicker" style="display:none;flex-shrink:0;padding:4px 12px 6px">
-    <div id="oppFmtGrid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center"></div>
   </div>
 
   <!-- Subs coming on — sits just above the bottom control bar (clear of the
@@ -1427,30 +1429,34 @@ const FORMATIONS = {
   'nb-open':   { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] }
 };
 
-// ===== AFL formations (oval pitch; y is the length axis — backs at y≈88, forwards at y≈12). =====
-// Shared layouts assigned to each age format below (avoids repeating the arrays).
+// ===== AFL formations (PORTRAIT oval — length runs along y: own goal at y≈88,
+// attacking goal at y≈12; width is x. Ruck division spread clear of the centre. =====
 const AFL_F18 = [
+  // Backs (own goal at y≈88)
   {label:'FB',  x:50,y:88},{label:'BPL', x:30,y:85},{label:'BPR', x:70,y:85},
   {label:'CHB', x:50,y:72},{label:'HBFL',x:25,y:70},{label:'HBFR',x:75,y:70},
-  {label:'C',   x:50,y:50},{label:'WL',  x:18,y:50},{label:'WR',  x:82,y:50},
+  // Mid
+  {label:'C',   x:50,y:50},{label:'WL',  x:16,y:50},{label:'WR',  x:84,y:50},
+  // Forwards (attacking goal at y≈12)
   {label:'CHF', x:50,y:28},{label:'HFFL',x:25,y:30},{label:'HFFR',x:75,y:30},
   {label:'FF',  x:50,y:12},{label:'FPL', x:30,y:15},{label:'FPR', x:70,y:15},
-  {label:'RUC', x:50,y:40},{label:'RR',  x:42,y:55},{label:'R',   x:58,y:55}
+  // Followers (ruck division spread clear of C)
+  {label:'RUC', x:50,y:38},{label:'RR',  x:34,y:60},{label:'R',   x:66,y:60}
 ];
 const AFL_F15 = [
   {label:'FB', x:50,y:87},{label:'BPL',x:28,y:84},{label:'BPR',x:72,y:84},
   {label:'CHB',x:50,y:70},{label:'HBL',x:25,y:68},{label:'HBR',x:75,y:68},
-  {label:'RUC',x:50,y:50},{label:'WL', x:20,y:52},{label:'WR', x:80,y:52},
+  {label:'RUC',x:50,y:50},{label:'WL', x:18,y:52},{label:'WR', x:82,y:52},
   {label:'CHF',x:50,y:30},{label:'HFL',x:25,y:32},{label:'HFR',x:75,y:32},
   {label:'FF', x:50,y:13},{label:'FPL',x:30,y:16},{label:'FPR',x:70,y:16}
 ];
 const AFL_F12 = [
-  {label:'FB', x:50,y:88},{label:'BL', x:28,y:82},{label:'BR', x:72,y:82},
+  {label:'FB', x:50,y:88},{label:'BL', x:30,y:82},{label:'BR', x:70,y:82},
   {label:'CHB',x:50,y:66},
-  {label:'C',  x:50,y:50},{label:'WL', x:24,y:50},{label:'WR', x:76,y:50},
+  {label:'WL', x:22,y:50},{label:'C',  x:50,y:50},{label:'WR', x:78,y:50},
   {label:'CHF',x:50,y:34},
-  {label:'FF', x:50,y:12},{label:'FL', x:28,y:18},{label:'FR', x:72,y:18},
-  {label:'RUC',x:50,y:42}
+  {label:'FL', x:30,y:18},{label:'FF', x:50,y:12},{label:'FR', x:70,y:18},
+  {label:'RUC',x:50,y:40}
 ];
 const AFL_F6 = [
   {label:'B',x:35,y:80},{label:'B',x:65,y:80},
@@ -1774,6 +1780,12 @@ const SOCCER_PITCH_SVG=window.SOCCER_PITCH_SVG;
 // .lu-pitch.np-afl box carries the 135/165 field aspect ratio, so the unit
 // circle in the 100×100 viewBox displays as a correctly-proportioned oval and
 // real-metre squares stay square — no "egg".
+// AFL pitch — PORTRAIT (attack up/down, like the soccer pitch). The oval is
+// drawn top-down here; the cabinet foreshortening (the tilted-ground / isometric
+// look, no egg) is applied uniformly via the .lu-pitch.np-afl box aspect-ratio,
+// so markings AND %-positioned tokens foreshorten together while shirts stay
+// upright. aflProject is identity (the box does the tilt).
+function aflProject(wx,wy){ return {x:wx, y:wy}; }
 function aflPitchSvg(){
   const TILT=90, DEPTH_AXIS='x';
   const FIELD_LEN_M=165, FIELD_WID_M=135;
@@ -1981,12 +1993,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.0.3-beta';
+const APP_VERSION='v2.0.4-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.0.4-beta':{
+    title:'AFL isometric oval + tidy-ups',
+    items:[
+      'AFL oval shown in portrait isometric (foreshortened, tilted-ground look), players spaced cleanly with no overlap',
+      'Period call-out (Q1 / 1ST HALF) moved to the left of the score',
+      'Opponent-shape overlay removed (parked until it is properly tested)',
+      'Youngest AFL grades (Auskick/U9/U10) default to subs-at-breaks'
+    ]
+  },
   'v2.0.3-beta':{
     title:'Subs at breaks only',
     items:[
@@ -2535,8 +2556,9 @@ function getTeamPrefs(team){
   if(p.sf==null) p.sf=fmt.defaultSub;
   if(p.sc==null) p.sc=fmt.defaultSc;
   // Subs only at quarter/half breaks (no rolling mid-play subs). Default ON for
-  // netball — that's the traditional rule — and OFF for soccer/AFL.
-  if(p.breaksOnly==null) p.breaksOnly=(fmt.sport==='netball');
+  // netball (traditional rule) and the youngest AFL grades (Auskick/U9/U10,
+  // which usually rotate at quarter breaks); OFF for older AFL + soccer (rolling).
+  if(p.breaksOnly==null) p.breaksOnly=(fmt.sport==='netball'||['afl-auskick','afl-9','afl-10'].includes(team.format));
   return p;
 }
 function renderEditTeamPrefs(){
@@ -2614,7 +2636,8 @@ function renderEditTeamPrefs(){
   const boRow=document.createElement('div');
   boRow.className='set-row';
   boRow.style.cssText='align-items:flex-start';
-  boRow.innerHTML=`<label style="flex:1;min-width:0">Subs at breaks only<br><span style="font-size:11px;color:#888;font-weight:500">No rolling subs — rotate only at ${periodName} breaks. (Standard netball rule.)</span></label>`;
+  const boNote=isNb?' (Standard netball rule.)':'';
+  boRow.innerHTML=`<label style="flex:1;min-width:0">Subs at breaks only<br><span style="font-size:11px;color:#888;font-weight:500">No rolling subs — rotate only at ${periodName} breaks.${boNote}</span></label>`;
   const tog=document.createElement('button');
   tog.type='button';
   const on=!!p.breaksOnly;
@@ -3951,25 +3974,6 @@ function renderG(){
       sslbl.style.display='none';
     }
   }
-  const ofl=document.getElementById('oppFmtLbl');
-  if(ofl){
-    if(isNetball){
-      ofl.style.display='none';
-    }else{
-      ofl.style.display='';
-      if(G.oppFormation){
-        ofl.textContent='OPP: '+G.oppFormation;
-        ofl.style.borderStyle='solid';
-        ofl.style.borderColor='#e94560';
-        ofl.style.color='#e94560';
-      } else {
-        ofl.textContent='OPP: ?';
-        ofl.style.borderStyle='dashed';
-        ofl.style.borderColor='#444';
-        ofl.style.color='#888';
-      }
-    }
-  }
 
   // Pitch visualization
   renderPitch();
@@ -4915,7 +4919,7 @@ function renderRoster(){
     const isSwapSel=(fieldSwapSel===pIdx);
     el.className='fc '+(isGk?'fc-gk':'fc-on')+(isOff?' fc-off':'')+(isSwapSel?' fc-sel':'');
     const _adj=adjustY(pos,isGk);
-    const _proj=_topDown?{x:_adj.x,y:_adj.y}:pitchPt(_adj.x,_adj.y);
+    const _proj=_isAfl?aflProject(_adj.x,_adj.y):(_isNb?{x:_adj.x,y:_adj.y}:pitchPt(_adj.x,_adj.y));
     el.style.cssText=`left:${_proj.x}%;top:${_proj.y}%;position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center`;
     // Sub indicator sits inline in the name pill, to the right with the arrow.
     const subInline=isOff&&replacedBy!==null?`<span class="fc-mins" style="color:#22c55e">↑${fn(avail[replacedBy])}</span>`:'';
@@ -4929,39 +4933,7 @@ function renderRoster(){
     pitch.appendChild(el);
   });
 
-  // Opposition shape — mirrored across the pitch.
-  // Soccer: nudge vertically when overlapping our player (formations vary, occasional overlap).
-  // Netball: every position overlaps a direct matchup (e.g. our GS vs their GK), so always
-  // shift horizontally so the opp marker sits beside our player as a visible matchup pairing.
-  if(G.oppFormation && FORMATIONS[curFmt][G.oppFormation]){
-    const oppPositions=[...FORMATIONS[curFmt][G.oppFormation]];
-    if(fmtDef.hasGk) oppPositions.unshift(GK_POS);
-    const _isNetballGame=_gSport.key==='netball';
-    oppPositions.forEach(p=>{
-      let oppY=100-p.y;
-      let oppX=p.x;
-      if(_isNetballGame){
-        // Always nudge horizontally so opp marker sits next to our matched player
-        oppX=oppX<50?Math.max(4,oppX-12):Math.min(96,oppX+12);
-      }else{
-        // Soccer: only nudge if there's an actual overlap
-        for(const slot of playerSlots){
-          if(Math.abs(slot.pos.x-oppX)<8&&Math.abs(slot.pos.y-oppY)<8){
-            const dir=slot.pos.y>oppY?-1:1;
-            oppY=Math.max(4,Math.min(96,oppY+dir*10));
-            break;
-          }
-        }
-      }
-      // Apply same y-compression to opp markers so they line up with our players
-      const _oppAdj=_topDown?{x:oppX,y:oppY}:adjustY({label:p.label,x:oppX,y:oppY},p.label==='GK');
-      const _oppProj=_topDown?{x:_oppAdj.x,y:_oppAdj.y}:pitchPt(_oppAdj.x,_oppAdj.y);
-      const op=document.createElement('div');
-      op.style.cssText=`position:absolute;left:${_oppProj.x}%;top:${_oppProj.y}%;transform:translate(-50%,-50%);z-index:1;width:22px;height:22px;border-radius:50%;background:rgba(120,120,140,.18);border:1px dashed rgba(180,180,200,.45);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:rgba(200,200,220,.6);letter-spacing:.5px;pointer-events:none`;
-      op.textContent=p.label;
-      pitch.appendChild(op);
-    });
-  }
+  // (Opponent-shape overlay removed — parked until it's properly tested/useful.)
   _pitchDims=null;   // reset so subsequent pitchPt calls return identity
 }
 
