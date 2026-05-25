@@ -1903,9 +1903,13 @@ function aflPitchSvg(){
 // ===== 3D AFL pitch viewer (Three.js) — free orbit / tilt / zoom, with preset
 // "key views". The ground + posts are real 3D; player pills are HTML projected
 // over the canvas (so they stay upright + tappable, reusing the 2D markup). =====
+// pitch3d — sport-aware 3D playing surface (AFL oval, soccer & netball rectangles).
+// One Three.js scene; the ground geometry is rebuilt per sport. Players are HTML pills projected over the canvas.
 const afl3d={
   ready(){ return !!(window.THREE && THREE.OrbitControls); },
-  FIELD_W:135, FIELD_L:165,
+  // World dimensions per sport (length L runs along z; width W along x). Real proportions, scaled to a common size.
+  DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15} },
+  sport:'afl', FIELD_W:135, FIELD_L:165, groundGrp:null,
   renderer:null, scene:null, camera:null, controls:null, wrap:null, overlay:null, raf:null, locked:false, view:'behind',
   pills:[],   // {el, x, y}
   worldOf(px,py,h){ return new THREE.Vector3((px/100-0.5)*this.FIELD_W, h||0, (py/100-0.5)*this.FIELD_L); },
@@ -1922,35 +1926,103 @@ const afl3d={
     return out;
   },
   _line(pts2d,color,op,y){ const g=new THREE.BufferGeometry().setFromPoints(pts2d.map(p=>new THREE.Vector3(p[0], y==null?0.08:y, p[1]))); return new THREE.Line(g, new THREE.LineBasicMaterial({color,transparent:true,opacity:op==null?0.5:op})); },
-  buildGround(){
-    const W=this.FIELD_W, L=this.FIELD_L, rx=W/2, rz=L/2, grp=new THREE.Group();
-    // Grass — filled ellipse on the XZ plane
-    const shape=new THREE.Shape(); const ep=this._ellipsePts(rx,rz,96);
-    shape.moveTo(ep[0][0],ep[0][1]); ep.slice(1).forEach(p=>shape.lineTo(p[0],p[1]));
+  // Filled grass for the current surface (ellipse for AFL, rounded-ish rectangle for soccer/netball).
+  _grass(grp,oval){
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2, shape=new THREE.Shape();
+    if(oval){ const ep=this._ellipsePts(rx,rz,96); shape.moveTo(ep[0][0],ep[0][1]); ep.slice(1).forEach(p=>shape.lineTo(p[0],p[1])); }
+    else { shape.moveTo(-rx,-rz); shape.lineTo(rx,-rz); shape.lineTo(rx,rz); shape.lineTo(-rx,rz); shape.lineTo(-rx,-rz); }
     const gm=new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({color:0x16241c}));
-    gm.rotation.x=-Math.PI/2; gm.position.y=0; grp.add(gm);
-    // Boundary
-    grp.add(this._line(this._ellipsePts(rx,rz,128),0xffffff,0.55));
-    // Centre square 50x50, centre circles (r5 + r1.5)
-    grp.add(this._line([[-25,-25],[25,-25],[25,25],[-25,25],[-25,-25]],0xffffff,0.3));
+    gm.rotation.x=-Math.PI/2; grp.add(gm);
+  },
+  // A vertical post/upright from the ground to height h.
+  _post(grp,x,z,h,op){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,0,z),new THREE.Vector3(x,h,z)]); grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:op==null?0.7:op}))); },
+  // A horizontal bar at height h between two x's (e.g. soccer crossbar).
+  _bar(grp,x1,x2,z,h,op){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,h,z),new THREE.Vector3(x2,h,z)]); grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:op==null?0.7:op}))); },
+  buildGround(){
+    const grp=new THREE.Group();
+    if(this.sport==='soccer') this._buildSoccer(grp);
+    else if(this.sport==='netball') this._buildNetball(grp);
+    else this._buildAfl(grp);
+    return grp;
+  },
+  _buildAfl(grp){
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
+    this._grass(grp,true);
+    grp.add(this._line(this._ellipsePts(rx,rz,128),0xffffff,0.55));        // boundary
+    grp.add(this._line([[-25,-25],[25,-25],[25,25],[-25,25],[-25,-25]],0xffffff,0.3)); // centre square 50×50
     grp.add(this._line(this._ellipsePts(5,5,48),0xffffff,0.34));
     grp.add(this._line(this._ellipsePts(1.5,1.5,24),0xffffff,0.38));
-    // 50m arcs + goal squares + posts at each end (z = ±rz)
     [-1,1].forEach(s=>{
       const gz=s*rz;
-      // 50m arc — clipped to the boundary so it never spills outside the oval (ends die on the boundary line)
-      grp.add(this._line(this._arcInEllipse(0,gz,50,rx,rz,220),0xffffff,0.32));
-      // goal square 6.4 wide (x) × 9 deep (z, into field)
-      const gw=6.4/2, gd=9; const z2=gz-s*gd;
+      grp.add(this._line(this._arcInEllipse(0,gz,50,rx,rz,220),0xffffff,0.32)); // 50m arc, clipped to boundary
+      const gw=6.4/2, gd=9, z2=gz-s*gd;                                          // goal square
       grp.add(this._line([[-gw,gz],[gw,gz],[gw,z2],[-gw,z2],[-gw,gz]],0xffffff,0.4));
-      // 4 posts: goals ±3.2, behinds ±9.6 — standing up (y 0→7)
-      [-9.6,-3.2,3.2,9.6].forEach(off=>{
-        const tall=Math.abs(off)<5?7:5.5;
-        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(off,0,gz),new THREE.Vector3(off,tall,gz)]);
-        grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.7})));
-      });
+      [-9.6,-3.2,3.2,9.6].forEach(off=>this._post(grp,off,gz,Math.abs(off)<5?7:5.5)); // goal + behind posts
     });
-    return grp;
+  },
+  _buildSoccer(grp){
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
+    this._grass(grp,false);
+    grp.add(this._line([[-rx,-rz],[rx,-rz],[rx,rz],[-rx,rz],[-rx,-rz]],0xffffff,0.5)); // touch/goal lines
+    grp.add(this._line([[-rx,0],[rx,0]],0xffffff,0.45));                                // halfway line
+    grp.add(this._line(this._ellipsePts(14,14,64),0xffffff,0.4));                       // centre circle
+    grp.add(this._line(this._ellipsePts(1,1,16),0xffffff,0.5));                         // centre spot
+    const pbW=31, pbD=25, gbW=14, gbD=8.4, gp=5.6, pen=17;   // half-widths/depths in world units
+    [-1,1].forEach(s=>{
+      const gl=s*rz, pz=gl-s*pbD, gz=gl-s*gbD;
+      grp.add(this._line([[-pbW,gl],[-pbW,pz],[pbW,pz],[pbW,gl]],0xffffff,0.4));   // penalty box
+      grp.add(this._line([[-gbW,gl],[-gbW,gz],[gbW,gz],[gbW,gl]],0xffffff,0.4));   // 6-yard box
+      grp.add(this._line(this._ellipsePts(0.8,0.8,12).map(p=>[p[0],p[1]+ (gl-s*pen)]),0xffffff,0.5)); // penalty spot
+      // penalty arc (D) — arc of r9 around the spot, only the part outside the box
+      grp.add(this._line(this._arcPts(0,gl-s*pen,9, s>0?Math.PI*1.18:Math.PI*0.18, s>0?Math.PI*1.82:Math.PI*0.82,32),0xffffff,0.4));
+      // goal frame: two posts + crossbar (depth-set slightly behind the line)
+      this._post(grp,-gp,gl,this.DIMS.soccer.goalH,0.8); this._post(grp,gp,gl,this.DIMS.soccer.goalH,0.8);
+      this._bar(grp,-gp,gp,gl,this.DIMS.soccer.goalH,0.8);
+      // corner arcs
+      [[-rx,gl],[rx,gl]].forEach(([cx,cz])=>grp.add(this._line(this._arcPts(cx,cz,2.5,0,Math.PI*2,18),0xffffff,0.3)));
+    });
+  },
+  _buildNetball(grp){
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
+    this._grass(grp,false);
+    grp.add(this._line([[-rx,-rz],[rx,-rz],[rx,rz],[-rx,rz],[-rx,-rz]],0xffffff,0.5)); // court boundary
+    grp.add(this._line([[-rx,-rz/3],[rx,-rz/3]],0xffffff,0.4));   // transverse third lines
+    grp.add(this._line([[-rx, rz/3],[rx, rz/3]],0xffffff,0.4));
+    grp.add(this._line(this._ellipsePts(3,3,40),0xffffff,0.45));  // centre circle
+    [-1,1].forEach(s=>{
+      const gl=s*rz;
+      // goal third semicircle (radius ~goal circle), bulging into court
+      grp.add(this._line(this._arcPts(0,gl,24.5, s>0?Math.PI:0, s>0?Math.PI*2:Math.PI,48),0xffffff,0.42));
+      // single goal post with the ring up at the top (horizontal hoop)
+      const gh=this.DIMS.netball.goalH;
+      this._post(grp,0,gl,gh,0.85);
+      grp.add(this._line(this._arcPts(0,gl,1.3,0,Math.PI*2,20),0xffffff,0.7,gh)); // ring at post top
+    });
+  },
+  // Sample points the camera must keep in frame (boundary ring/rect + goal-height) → drives auto-zoom for any sport.
+  _buildFitPts(){
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2, goalH=(this.DIMS[this.sport]||this.DIMS.afl).goalH;
+    this._fitPts=[];
+    if((this.DIMS[this.sport]||{}).shape==='oval'){
+      for(let i=0;i<56;i++){ const t=i/56*Math.PI*2; this._fitPts.push(new THREE.Vector3(Math.cos(t)*rx,0,Math.sin(t)*rz)); }
+    } else {
+      for(let i=0;i<=8;i++){ const f=i/8; this._fitPts.push(new THREE.Vector3(-rx+2*rx*f,0,-rz), new THREE.Vector3(-rx+2*rx*f,0,rz)); }
+      [-rz,rz].forEach(z=>this._fitPts.push(new THREE.Vector3(-rx,0,z), new THREE.Vector3(rx,0,z)));
+    }
+    [-rz,rz].forEach(z=>this._fitPts.push(new THREE.Vector3(0,goalH,z)));
+  },
+  // Swap the playing surface (AFL oval ↔ soccer/netball rectangle) without tearing down the renderer.
+  setSport(key){
+    if(!this.DIMS[key]) key='afl';
+    if(key===this.sport && this.groundGrp) return false;
+    this.sport=key; this.FIELD_W=this.DIMS[key].W; this.FIELD_L=this.DIMS[key].L;
+    if(this.scene){
+      if(this.groundGrp) this.scene.remove(this.groundGrp);
+      this.groundGrp=this.buildGround(); this.scene.add(this.groundGrp);
+      this._buildFitPts();
+      this.setView(this.view||'behind');
+    }
+    return true;
   },
   init(container){
     container.style.position='relative';   // confine the absolute wrap to this clean zone (no clipping over other UI)
@@ -1964,15 +2036,12 @@ const afl3d={
     const camera=new THREE.PerspectiveCamera(42, W/H, 1, 3000);
     const controls=new THREE.OrbitControls(camera, renderer.domElement);
     controls.enablePan=false; controls.enableDamping=true; controls.dampingFactor=0.12;
-    controls.minDistance=130; controls.maxDistance=520; controls.minPolarAngle=0.04; controls.maxPolarAngle=1.46;
+    controls.minDistance=80; controls.maxDistance=600; controls.minPolarAngle=0.04; controls.maxPolarAngle=1.46;
     // Once the user drags/pinches, they've left the preset — drop the highlight (setView fires 'change', not 'start', so presets stay lit).
     controls.addEventListener('start', ()=>{ if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.remove('active')); });
-    scene.add(this.buildGround());
-    // Sample points the camera must keep in frame (boundary ring + post tops) → used to auto-zoom the oval to fill the box.
-    this._fitPts=[]; { const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
-      for(let i=0;i<56;i++){ const t=i/56*Math.PI*2; this._fitPts.push(new THREE.Vector3(Math.cos(t)*rx,0,Math.sin(t)*rz)); }
-      [-rz,rz].forEach(gz=>this._fitPts.push(new THREE.Vector3(0,7,gz))); }
+    this.groundGrp=this.buildGround(); scene.add(this.groundGrp);
     this._fitMargin=1.06; this._pillScale=0.95; this._fitD=null;
+    this.scene=scene; this._buildFitPts();
     wrap.appendChild(renderer.domElement); wrap.appendChild(overlay);
     // View buttons + hint
     const views=document.createElement('div'); views.className='afl3d-views';
@@ -2069,13 +2138,14 @@ const afl3d={
       p.el.style.transform='translate(-50%,-50%) scale('+s.toFixed(3)+')';
     });
   },
-  update(container, buildPill){
+  update(container, buildPill, sport){
     if(!this.ready()) return false;
-    // (Re)create the scene if our canvas was wiped from this container.
-    if(!this.renderer || this.renderer.domElement.parentElement?.parentElement!==container){
-      container.innerHTML=''; this.raf=null; this.init(container);
-    }
-    // Size the renderer to the (now-settled) zone — bench/hint are already laid out — then re-fit the oval to it.
+    const needInit=(!this.renderer || this.renderer.domElement.parentElement?.parentElement!==container);
+    // Set dims BEFORE a fresh init so the right surface is built first time; otherwise setSport rebuilds in place.
+    if(needInit && sport && this.DIMS[sport]){ this.sport=sport; this.FIELD_W=this.DIMS[sport].W; this.FIELD_L=this.DIMS[sport].L; }
+    if(needInit){ container.innerHTML=''; this.raf=null; this.init(container); }
+    if(sport) this.setSport(sport);   // no-op when unchanged; swaps the surface on a sport switch
+    // Size the renderer to the (now-settled) zone — bench/hint are already laid out — then re-fit the surface to it.
     const w=this.wrap.clientWidth, h=this.wrap.clientHeight;
     if(w&&h){ this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); this.autoFit(); }
     // Rebuild pills
@@ -2219,12 +2289,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.1.0-beta';
+const APP_VERSION='v2.2.0-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.2.0-beta':{
+    title:'3D pitch for soccer & netball too',
+    items:[
+      'Soccer and netball now use the same real 3D pitch as AFL — drag to rotate, pinch to zoom, tap a player',
+      'Soccer pitch has the full markings: penalty boxes, 6-yard boxes, penalty arcs, centre circle, halfway line, corner arcs and goals',
+      'Netball court shows the thirds, centre circle, both goal circles and goal posts',
+      'Behind / Side / Top camera presets and auto-zoom-to-fit work for every sport'
+    ]
+  },
   'v2.1.0-beta':{
     title:'AFL oval — real 3D you can spin',
     items:[
@@ -5180,7 +5259,8 @@ function renderRoster(){
   const hintC=document.getElementById('modeHint');
   // AFL uses the 3D viewer when Three.js is available; it manages pitchMid itself
   // (don't wipe its canvas). Falls back to the 2D oval otherwise.
-  const _use3d=(getSport(currentTeam).key==='afl') && afl3d.ready();
+  const _3dSport=getSport(currentTeam).key;   // soccer / netball / afl — all use the 3D surface now
+  const _use3d=afl3d.ready() && ['afl','soccer','netball'].includes(_3dSport);
   if(benchTop) benchTop.innerHTML='';
   if(pitchMid && !_use3d) pitchMid.innerHTML='';
   if(hintC) hintC.innerHTML='';
@@ -5232,7 +5312,7 @@ function renderRoster(){
     }
   }
 
-  // ===== AFL 3D viewer — managed by afl3d (Three.js). Pills are HTML over the canvas. =====
+  // ===== 3D pitch viewer (AFL oval / soccer & netball rectangles) — Three.js. Pills are HTML over the canvas. =====
   if(_use3d){
     afl3d.update(pitchMid, (add)=>{
       playerSlots.forEach(({pos,pIdx,isGk})=>{
@@ -5250,7 +5330,7 @@ function renderRoster(){
         el.onclick=()=>tapFieldPlayer(pIdx,isGk);
         add(el, pos.x, pos.y);   // pos.x=width%, pos.y=length% → afl3d.worldOf
       });
-    });
+    }, _3dSport);
     return;
   }
 

@@ -4,6 +4,17 @@ All notable changes to the app, by version. The in-app "What's New" modal pulls 
 
 ---
 
+## v2.2.0-beta — 3D pitch for soccer & netball too
+
+- ⚽ **Soccer** and 🥅 **netball** now use the same real 3D playing surface as AFL — drag to rotate, pinch to zoom, tap a player. Same Behind / Side / Top presets, lock toggle, and auto-zoom-to-fit.
+- ⚽ **Soccer pitch** renders the full kit: touch/goal lines, halfway line, centre circle + spot, penalty boxes, 6-yard boxes, penalty arcs (the "D"), corner arcs, and goal frames (posts + crossbar) at each end.
+- 🥅 **Netball court** renders the thirds (two transverse lines), centre circle, both goal-circle semicircles, and a standing goal post with ring at each goal line.
+
+### Architecture notes
+- `afl3d` generalised into a sport-aware viewer. New `DIMS` map (`afl` oval 135×165, `soccer` rect 104×160, `netball` rect 76.5×153, each with a `goalH`); `setSport(key)` swaps `FIELD_W/L`, rebuilds the ground group in place (no renderer teardown), regenerates fit points, and re-runs `setView`. `buildGround()` dispatches to `_buildAfl` / `_buildSoccer` / `_buildNetball`; shared helpers `_grass(oval)`, `_post`, `_bar`. `_buildFitPts()` samples an ellipse ring (AFL) or rectangle perimeter (soccer/netball) plus goal-height points so `autoFit` frames any surface. `update(container, buildPill, sport)` sets dims before a fresh `init` and calls `setSport` on a switch. `renderRoster` routes all three sports to the 3D viewer when `afl3d.ready()` and passes the sport key; the 2D pitch remains the fallback when Three.js is unavailable.
+
+---
+
 ## v2.1.0-beta — AFL oval is now a real 3D model
 
 - 🏉 **True 3D AFL ground** built with Three.js (WebGL). Drag to rotate, pinch to zoom, tap a player exactly like before. The oval, goal posts, centre square, centre circles and 50m arcs all render in real 3D space.
