@@ -2893,12 +2893,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.37-beta';
+const APP_VERSION='v2.7.38-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.38-beta':{
+    title:'Team cards always open the action menu',
+    items:[
+      'The inline green Start button on each team card (added back in older versions) was bypassing the new action menu and routing straight to Quick Start. Replaced it with a chevron so taps anywhere on the card open the same Play now / Plan ahead / Past games / Edit menu.'
+    ]
+  },
   'v2.7.37-beta':{
     title:'Fix: basketball team setup screen was broken',
     items:[
@@ -3617,9 +3623,11 @@ function renderHome(){
     const fmtLabel=t.format&&FORMATS[t.format]?FORMATS[t.format].label:null;
     const _spt=getSport(t);
     const canPlay=t.format&&FORMATS[t.format]&&t.players.length>=FORMATS[t.format].onField;
+    // v2.7.38: replaced the inline Start button with a chevron — the whole card
+    // taps into the action menu (Play now / Plan ahead / Past games / Edit).
+    // The Start shortcut was bypassing the menu and confusing the flow.
     const actionBtns=canPlay
-      ? `<button onclick="event.stopPropagation();editTeamScreen('${t.id}')" style="background:none;border:1px solid #444;color:#888;border-radius:8px;padding:6px 8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;flex-shrink:0" title="Edit team">${ic('pen',13)}</button>
-         <button onclick="event.stopPropagation();selectTeam('${t.id}')" style="background:#00d4aa;color:#0a1628;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;flex-shrink:0" title="Start a match">${ic('play',13)}Start</button>`
+      ? `<button onclick="event.stopPropagation();openTeamActions('${t.id}')" style="background:none;border:1px solid #2a3550;color:#9fb3c8;border-radius:8px;padding:6px 8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;flex-shrink:0" title="Team actions">${ic('chevron-right',16)}</button>`
       : `<button onclick="event.stopPropagation();editTeamScreen('${t.id}')" style="background:rgba(240,165,0,.15);color:#f0a500;border:1px solid #f0a500;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0" title="Finish team setup">Set up</button>`;
     d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1"><span style="color:#5bc0de;flex-shrink:0;display:flex">${ic(_spt.icon,22)}</span><div style="min-width:0;flex:1"><h3 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</h3><p>${t.players.length} players${fmtLabel?' · '+fmtLabel:''}</p></div></div>
