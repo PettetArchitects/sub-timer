@@ -246,13 +246,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .gd-btn.gd-reset.armed{background:linear-gradient(180deg,#e94560,#c8334b);border-color:#e94560;color:#fff;animation:pulse .5s infinite alternate}
 /* Stopwatch-style positioning: PAUSE sits on the far left when running;
    when paused, START slides to the far right via flex order. */
-/* v2.7.6 layout:
-   - Paused (HTML order, no classes):     [RESET] [Undo] [Formation] [View] [Edit] [START]
-   - Running (ppB.at-start, subB.at-end, gdUndo.at-end-1): [PAUSE] [Formation] [View] [Edit] [Undo] [SUB]
-   Undo always sits adjacent to the SUB/RESET button so all sub-related controls cluster together. */
-.gd-btn.at-start{order:-1}
-.gd-btn.at-end-1{order:998}
-.gd-btn.at-end{order:999}
+/* v2.7.8: fixed dashboard positions in both states (the v2.7.4 swap was jarring).
+   Layout (always): [SUB/RESET] [Undo] [Formation] [View] [Edit] [PAUSE/START]
+   Only the end-button labels + colours morph between states; nothing slides. */
 .gd-btn.gd-go svg,.gd-btn.gd-pause svg,.gd-btn.gd-sub svg,.gd-btn.gd-reset svg{width:21px;height:21px}
 
 /* Diagrammatic pitch — v1.9 uses CSS 3D perspective to tilt the ground plane.
@@ -793,9 +789,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:6px 12px;border-top:1px solid #243049;background:#10162a">
     <div id="gameFmtGrid" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
   </div>
-  <!-- v2.7.6 layout: Undo lives next to SUB/RESET. HTML order pairs subB↔gdUndo so they sit
-       together in the paused state; in the running state both get at-end* classes so they slide
-       to the far right together. ppB anchors the opposite end. -->
+  <!-- v2.7.8 layout: fixed positions in both states (iPhone-Stopwatch style).
+       Always [SUB/RESET] [Undo] [Formation] [View] [Edit] [PAUSE/START]. Only labels + colours
+       morph between play/pause — no buttons slide between positions. -->
   <div id="gameDash" style="display:flex;gap:6px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));flex-shrink:0;border-top:1px solid #243049;background:linear-gradient(180deg,#141a2e,#0f1422)">
     <button class="gd-btn gd-sub" id="subB"></button>
     <button class="gd-btn" id="gdUndo" onclick="undoLastSub()"></button>
@@ -2582,12 +2578,16 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.7-beta';
+const APP_VERSION='v2.7.8-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.8-beta':{
+    title:'Dashboard buttons no longer slide on play/pause',
+    items:['Reverted the v2.7.4 position swap — hitting play/pause was making PAUSE jump from one side to the other, which read as a bug. Layout is now fixed in both states: [SUB/RESET] [Undo] [Formation] [View] [Edit] [PAUSE/START]. Only labels and colours morph.']
+  },
   'v2.7.7-beta':{
     title:'Tap-anywhere to cancel an armed swap or injury',
     items:['v2.7.5 only listened on the pitch, so a tap on the clock, score, or bench didn\'t clear it. Now any tap outside a player pill, overlay, sub banner, or the bottom dashboard cancels the armed mode.']
@@ -4735,12 +4735,8 @@ function renderG(){
   // Score
   renderScore();
 
-  // v2.7.4 layout: end buttons swap sides on state change.
-  //   Paused:  [RESET ... START] — primary on the right, ready to kick off.
-  //   Running: [PAUSE ... SUB]  — primary on the left, sub action on the right.
-  // Middle (Formation/View/Edit/Undo) stays put across both states.
-  const ppBtn=document.getElementById('ppB');
-  if(ppBtn) ppBtn.classList.toggle('at-start', !!G.running);
+  // v2.7.8: end buttons stay in fixed positions (iPhone-Stopwatch style).
+  // Only labels + colours morph; nothing slides between sides on play/pause.
 
   // Secondary button (subB) — morphs between SUB (when running / at break) and
   // RESET (when paused mid-half). Double-tap confirm (TAP AGAIN) for RESET.
@@ -4762,9 +4758,6 @@ function renderG(){
       subBtn.innerHTML=`${ic('refresh',21)}<span>SUB</span>`;
       subBtn.onclick=manualSub;
     }
-    // v2.7.4: in SUB mode (running/at break) subB sits on the right (at-end);
-    // in RESET mode (paused) it falls back to its default HTML order on the left.
-    subBtn.classList.toggle('at-end', !inResetMode);
   }
 
   // (Our formation now shows on the bottom-bar Formation button — see renderGameDash.)
@@ -5391,9 +5384,7 @@ function renderGameDash(){
   if(undo){
     undo.innerHTML=`${ic('undo-2',17)}<span>Undo</span>`;
     undo.disabled=!(G&&G.lastSub);
-    // v2.7.6: Undo slides to the right with subB when in SUB mode so it always sits adjacent.
-    const subRight=!!(G && G.running);   // matches subB.at-end condition
-    undo.className='gd-btn'+(subRight?' at-end-1':'');
+    undo.className='gd-btn';
   }
   _li();
 }
