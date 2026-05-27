@@ -1974,7 +1974,10 @@ const afl3d={
       grp.add(this._line([[-gbW,gl],[-gbW,gz],[gbW,gz],[gbW,gl]],0xffffff,0.4));   // 6-yard box
       grp.add(this._line(this._ellipsePts(0.8,0.8,12).map(p=>[p[0],p[1]+ (gl-s*pen)]),0xffffff,0.5)); // penalty spot
       // penalty arc (D) — arc of r9 around the spot, only the part outside the box
-      grp.add(this._line(this._arcPts(0,gl-s*pen,9, s>0?Math.PI*1.18:Math.PI*0.18, s>0?Math.PI*1.82:Math.PI*0.82,32),0xffffff,0.4));
+      // Penalty arc (the "D"): the only part of a 9.15m circle around the spot that lies OUTSIDE the penalty box.
+      // Span is computed from geometry: half-angle = acos((boxDepth - spotDepth) / arcRadius).
+      const par=14, ha=Math.acos(Math.min(0.999,Math.max(-0.999,(pbD-pen)/par))), ctr=s>0?Math.PI*1.5:Math.PI*0.5;
+      grp.add(this._line(this._arcPts(0,gl-s*pen,par, ctr-ha, ctr+ha, 24),0xffffff,0.4));
       // goal frame: two posts + crossbar
       this._post(grp,-gp,gl,this.DIMS.soccer.goalH,0.8); this._post(grp,gp,gl,this.DIMS.soccer.goalH,0.8);
       this._bar(grp,-gp,gp,gl,this.DIMS.soccer.goalH,0.8);
@@ -2287,12 +2290,16 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.2.1-beta';
+const APP_VERSION='v2.2.2-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.2.2-beta':{
+    title:'Soccer penalty arc fix',
+    items:['Penalty arc (the "D") now sits correctly outside the penalty box — proper radius and span']
+  },
   'v2.2.1-beta':{
     title:'Tidier soccer pitch',
     items:['Removed the corner circles on the soccer pitch']
