@@ -102,6 +102,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .tmr-c.warn{color:#f0a500}.tmr-c.alert{color:#e94560;animation:pulse .5s infinite alternate}.tmr-c.sub-now{color:#e94560;animation:sub-flash .4s ease-in-out infinite alternate}
 /* Next-sub countdown digit display — same font/size, slimmer (no centiseconds) and green by default. */
 .tmr-c.tmr-sub{font-size:min(10vw,44px);letter-spacing:1.5px;color:#00d4aa}
+/* iPhone / narrow-portrait: shrink the game-screen header so the period label,
+   score controls and team names fit alongside the absolutely-positioned X.
+   Wraps the period label above the score row when the row alone is too wide. */
+@media(max-width:480px){
+  #s4 > div:first-child{padding-left:40px!important;padding-right:40px!important}
+  #s4 > div:first-child > div{flex-wrap:wrap!important;justify-content:center!important;row-gap:2px!important}
+  #s4 #hLbl{font-size:10px!important;letter-spacing:.5px!important}
+  #s4 #scoreArea{gap:3px!important;flex-wrap:nowrap!important}
+  #s4 #scoreArea > span:first-child,#s4 #scoreArea > span:last-child{font-size:10px!important;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.3px!important}
+  #s4 #scoreArea > button{width:24px!important;height:24px!important;font-size:14px!important}
+  #s4 #scoreArea > span[style*="font-size:40px"]{font-size:28px!important;min-width:22px!important}
+  #s4 #scoreArea > span[style*="font-size:32px"]{font-size:20px!important;margin:0 2px!important}
+}
 @keyframes sub-flash{from{opacity:1}to{opacity:.4}}
 @keyframes pulse{from{opacity:1}to{opacity:.4}}
 .nxt{font-size:13px;color:#888;margin-top:4px}.nxt strong{color:#00d4aa}
@@ -662,7 +675,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <!-- Clock + next-sub countdown side-by-side (both same digital style). The countdown is hidden in breaks-only mode. -->
   <div style="text-align:center;padding:12px 0 4px;flex-shrink:0">
     <div style="display:flex;align-items:center;justify-content:center;gap:min(5vw,32px);flex-wrap:nowrap">
-      <div class="tmr-c" id="clk" style="margin:0;line-height:1">00:00.00</div>
+      <div class="tmr-c" id="clk" style="margin:0;line-height:1">00:00</div>
       <div class="tmr-c tmr-sub" id="clkSub" style="margin:0;line-height:1;color:#00d4aa;display:none">05:00</div>
     </div>
     <div id="nsi" style="margin-top:4px;font-size:14px;color:#888;font-weight:600;letter-spacing:.3px"></div>
@@ -1584,7 +1597,6 @@ const fn=name=>{
   return `${first} ${last[0].toUpperCase()}`;
 };
 const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-const fmtMs=ms=>{const ts=Math.floor(ms/1000);const cs=Math.floor((ms%1000)/10);return String(Math.floor(ts/60)).padStart(2,'0')+':'+String(ts%60).padStart(2,'0')+'.'+String(cs).padStart(2,'0');};
 
 // ===== AUDIO: sound packs via Web Audio API =====
 let audioCtx=null;
@@ -2402,12 +2414,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.4.1-beta';
+const APP_VERSION='v2.4.2-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.4.2-beta':{
+    title:'iPhone fit — no more clipped header or clock',
+    items:[
+      'Clock now shows just MM:SS — the centiseconds were overflowing on iPhone and added noise without helping anyone',
+      'Game-screen header (period + score + team names) shrinks on iPhone-width screens so nothing collides with the end-game ✕ button',
+      'Period label wraps above the score row when the row alone is too wide'
+    ]
+  },
   'v2.4.1-beta':{
     title:'Sub countdown clock + swap animation + tidy orbit',
     items:[
@@ -4420,7 +4440,7 @@ function nxtST(){for(const t of subTs())if(!G.sd.includes(t))return t;return nul
 function renderG(){
   const _sport=getSport(currentTeam);
   const curMs=G.running&&G.lastTs?G.elapsedMs+(performance.now()-G.lastTs):G.elapsedMs;
-  const ce=document.getElementById('clk');ce.textContent=fmtMs(curMs);
+  const ce=document.getElementById('clk');ce.textContent=fmt(Math.floor(curMs/1000));
   ce.className='tmr-c';
   const ni=document.getElementById('nsi');
   const pb=document.getElementById('ppB');
@@ -4728,8 +4748,8 @@ function tickLoop(now){
     // Periodic checkpoint every 5s of game time so a refresh loses at most 5s
     if(G.secs%5===0)saveActiveGame();
   }
-  // Update display with centiseconds
-  const ce=document.getElementById('clk');ce.textContent=fmtMs(totalMs);
+  // Update display (whole seconds — centiseconds were too noisy and overflowed on iPhone)
+  const ce=document.getElementById('clk');ce.textContent=fmt(Math.floor(totalMs/1000));
   ce.className='tmr-c';
   const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
   if(subBannerUp){ce.className='tmr-c sub-now';}
