@@ -339,8 +339,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .afl3d-wrap canvas{display:block;width:100%;height:100%;touch-action:none}
 .afl3d-overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .afl3d-overlay .fc{pointer-events:auto}
-.afl3d-overlay .fc-shirt{width:30px;height:34px}
-.afl3d-overlay .fc-shirt-num{font-size:10px}
+/* v2.7.22: soccer + netball default shirt size shrunk a touch (30→26 / 34→30) — the old size
+   felt too big at the default fit zoom. AFL stays smaller still (data-sport="afl"). */
+.afl3d-overlay .fc-shirt{width:26px;height:30px}
+.afl3d-overlay .fc-shirt-num{font-size:9px}
 .afl3d-overlay .fc-label{padding:1px 4px;gap:3px;margin-top:1px}
 .afl3d-overlay .fc-pos{font-size:8px;min-width:11px;padding:1px 3px}
 .afl3d-overlay .fc-name{font-size:9px;letter-spacing:.2px}
@@ -810,10 +812,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     </div>
     <!-- Score controls rendered per-sport by renderScore() — AFL gets goals/behinds. -->
     <div id="scoreArea" style="display:flex;align-items:center;gap:6px"></div>
-    <!-- v2.7.20: Sub Order button — top-right mirror of the hamburger. Opens an overlay listing all upcoming subs in the half, regardless of chosen strategy. -->
-    <button id="subOrderBtn" onclick="openSubOrder()" aria-label="Sub Order" title="Sub Order" style="position:absolute;top:6px;right:8px;width:38px;height:38px;border-radius:10px;border:1px solid #444;background:none;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-    </button>
+    <!-- v2.7.22: subOrder button moved out of the top-right onto the bottom dashboard (#gdPlan) — it's a key feature and belongs in the thumb zone. -->
   </div>
 
   <!-- Clock + next-sub countdown side-by-side, each with its OWN label
@@ -879,12 +878,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div id="gameFmtPicker" style="display:none;flex-shrink:0;padding:6px 12px;border-top:1px solid #243049;background:#10162a">
     <div id="gameFmtGrid" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
   </div>
-  <!-- v2.7.9 layout: Edit Team in the hamburger; Subs Strategy is a dashboard button; View
-       cycle moved to a bottom-left overlay on the pitch. Bottom bar:
-       [SUB/RESET] [Undo] [Formation] [Subs] [PAUSE/START]. -->
+  <!-- v2.7.22 layout: Plan added (sub-order/strategy view — key feature, lives in the thumb zone).
+       [SUB/RESET] [Undo] [Plan] [Formation] [PAUSE/START]. -->
   <div id="gameDash" style="display:flex;gap:6px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));flex-shrink:0;border-top:1px solid #243049;background:linear-gradient(180deg,#141a2e,#0f1422)">
     <button class="gd-btn gd-sub" id="subB"></button>
     <button class="gd-btn" id="gdUndo" onclick="undoLastSub()"></button>
+    <button class="gd-btn" id="gdPlan" onclick="openSubOrder()"></button>
     <button class="gd-btn" id="gdFormation" onclick="toggleGameFormation()"></button>
     <button class="gd-btn gd-go" id="ppB" onclick="tog()"></button>
   </div>
@@ -2363,7 +2362,8 @@ const afl3d={
     this._resW=renderer.domElement.width||W; this._resH=renderer.domElement.height||H;
     this._lineMats=[];
     this.groundGrp=this.buildGround(); scene.add(this.groundGrp);
-    this._fitMargin=1.06; this._pillScale=1.18; this._fitD=null;
+    // v2.7.22: bumped fit margin 1.06→1.18 so the default zoom leaves a bit of breathing room around the field — shirts felt too big up against the touchline at the previous tight fit.
+    this._fitMargin=1.18; this._pillScale=1.18; this._fitD=null;
     this.scene=scene; this._buildFitPts(); this._syncLineRes();
     wrap.appendChild(renderer.domElement); wrap.appendChild(overlay);
     // View buttons + hint
@@ -2770,12 +2770,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.21-beta';
+const APP_VERSION='v2.7.22-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.22-beta':{
+    title:'Plan button on dashboard + smaller soccer pills + roomier zoom',
+    items:[
+      'Sub Order moved off the top-right and onto the bottom dashboard as a "Plan" button (showing the active strategy short label: Equal / Paired / Manual / Plan). Key feature, belongs in the thumb zone.',
+      'Soccer + netball default pill size reduced (30×34 → 26×30) so shirts don\'t crowd the touchline. AFL stays smaller (22×26).',
+      'Default zoom margin bumped from 1.06 → 1.18 so the pitch sits in a roomier frame at the initial fit — shirts read better without manual zoom-out.'
+    ]
+  },
   'v2.7.21-beta':{
     title:'Full-game Sub Order, bench columns, AFL angle clamped back',
     items:[
@@ -5657,6 +5665,15 @@ function renderGameDash(){
   // v2.7.9: View cycle moved off the dashboard onto a bottom-left overlay on the pitch.
   updateViewToggle();
   // Edit Team lives in the hamburger menu now (v2.7.9) — no dashboard button.
+  // v2.7.22: Plan button paints the current strategy short label so coaches can read
+  // the active mode at a glance (Equal / Paired / Manual / Plan). Tap opens Sub Order.
+  const planBtn=document.getElementById('gdPlan');
+  if(planBtn){
+    const stratMap={'fair':{icon:'timer',label:'Equal'},'paired':{icon:'refresh',label:'Paired'},'manual':{icon:'target',label:'Manual'},'planned':{icon:'clipboard',label:'Plan'}};
+    const s=stratMap[G&&G.subStrategy]||stratMap.fair;
+    planBtn.innerHTML=`${ic(s.icon,17)}<span>${s.label}</span>`;
+    planBtn.className='gd-btn';
+  }
   const undo=document.getElementById('gdUndo');
   if(undo){
     undo.innerHTML=`${ic('undo-2',17)}<span>Undo</span>`;
