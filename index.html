@@ -729,7 +729,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <button class="gd-btn gd-go" id="ppB" onclick="tog()"></button>
     <button class="gd-btn gd-sub" id="subB"></button>
     <button class="gd-btn" id="gdFormation" onclick="toggleGameFormation()"></button>
-    <button class="gd-btn" id="gdInjury" onclick="setGameMode('injury')"></button>
     <button class="gd-btn" id="gdEdit" onclick="editTeamFromGame()"></button>
     <button class="gd-btn" id="gdUndo" onclick="undoLastSub()"></button>
   </div>
@@ -747,6 +746,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <h2 style="display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="refresh-cw" width="20" height="20" style="width:20px;height:20px;display:inline-flex"></i>TIME TO SUB!</h2>
     <div id="subM"></div>
     <button class="btn btn-g" onclick="confSub()" style="margin-top:16px">Got it ✓</button>
+  </div>
+</div>
+<!-- Per-player action picker — opens when an on-field player is tapped.
+     Replaces the old permanent Swap / Injury buttons on the dashboard. -->
+<div class="ov" id="playerActionOv" onclick="if(event.target===this)closePlayerActions()">
+  <div class="ab" style="border-color:#5bc0de;max-width:340px">
+    <h2 id="playerActionName" style="color:#5bc0de;font-size:18px;margin-bottom:14px"></h2>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button id="playerActionSwap" onclick="chooseSwap()" style="padding:14px;background:linear-gradient(180deg,rgba(91,192,222,.2),rgba(91,192,222,.06));border:1.5px solid #5bc0de;border-radius:10px;color:#5bc0de;font-size:15px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit"><i data-lucide="arrow-left-right" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i>SWAP POSITIONS</button>
+      <button id="playerActionInjury" onclick="chooseInjury()" style="padding:14px;background:linear-gradient(180deg,rgba(233,69,96,.18),rgba(233,69,96,.05));border:1.5px solid #e94560;border-radius:10px;color:#ff7088;font-size:15px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit"><i data-lucide="bandage" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i>INJURY</button>
+      <button onclick="closePlayerActions()" style="padding:10px;background:none;border:1px solid #444;border-radius:8px;color:#888;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit">Cancel</button>
+    </div>
   </div>
 </div>
 <!-- Sub strategy chooser — shown once at game start so coach picks how subs should behave -->
@@ -2423,12 +2434,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.4.5-beta';
+const APP_VERSION='v2.4.6-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.4.6-beta':{
+    title:'Tap a player → Swap or Injury popup',
+    items:[
+      'Injury button removed from the bottom bar (Swap was already gone). Tap any on-field player and a popup offers SWAP POSITIONS or INJURY — the bar now just holds the always-relevant actions (Pause/Start, Sub/Reset, Formation, Edit Team, Undo)',
+      'Mid-swap completion stays fluid: once SWAP is picked, tap the second player to finish (no second popup)'
+    ]
+  },
   'v2.4.5-beta':{
     title:'iPhone-Stopwatch layout — START right, PAUSE left, RESET on the SUB slot',
     items:[
@@ -5044,27 +5062,68 @@ function setGameMode(m){
   renderG();
 }
 
+// Tap on an on-field player. Two paths:
+//   1. Mid-swap (fieldSwapSel already set) → complete the swap with this player.
+//   2. Otherwise → open the per-player action popup (Swap / Injury / Cancel).
+// The popup replaces the old permanent Swap / Injury dashboard buttons.
+let _pendingActionIdx=null, _pendingActionIsGk=false;
 function tapFieldPlayer(pIdx, isGk){
-  if(gameMode==='injury'){
-    if(isGk) return;          // change the keeper via Keeper mode, not Injury
-    if(!G.bench.length) return;
-    injuryOffSel=pIdx;        // remember who's coming off; bench pills now pick the replacement
+  // Mid-swap completion still works without going through the popup so a
+  // two-tap swap stays fluid: tap player A → SWAP → tap player B.
+  if(fieldSwapSel!==null){
+    if(fieldSwapSel===pIdx){
+      fieldSwapSel=null;
+    } else {
+      window._justSwapped={ names:new Set([avail[fieldSwapSel], avail[pIdx]]), t:Date.now() };
+      setTimeout(()=>{ window._justSwapped=null; if(typeof renderG==='function') renderG(); }, 1200);
+      swapFieldPositions(fieldSwapSel, pIdx);
+      fieldSwapSel=null;
+      saveActiveGame();
+    }
     renderG();
     return;
   }
-  // swap mode (default) — exchange two players' positions
-  if(fieldSwapSel===null){
-    fieldSwapSel=pIdx;
-  } else if(fieldSwapSel===pIdx){
-    fieldSwapSel=null;        // tapped same player → deselect
-  } else {
-    // Flag both swapped players so the 3D viewer pulses them cyan — quick visual confirmation that the swap happened.
-    window._justSwapped={ names:new Set([avail[fieldSwapSel], avail[pIdx]]), t:Date.now() };
-    setTimeout(()=>{ window._justSwapped=null; if(typeof renderG==='function') renderG(); }, 1200);
-    swapFieldPositions(fieldSwapSel, pIdx);
-    fieldSwapSel=null;
-    saveActiveGame();
+  // Default: open the action popup for this player.
+  openPlayerActions(pIdx, isGk);
+}
+
+function openPlayerActions(pIdx, isGk){
+  if(!G) return;
+  _pendingActionIdx=pIdx;
+  _pendingActionIsGk=!!isGk;
+  const ov=document.getElementById('playerActionOv');
+  const nameEl=document.getElementById('playerActionName');
+  const injBtn=document.getElementById('playerActionInjury');
+  if(nameEl) nameEl.textContent=fn(avail[pIdx])+(isGk?' (GK)':'');
+  // Injury option: needs a bench player to bring on, and GK injuries go through
+  // the keeper-change flow instead (not supported here).
+  if(injBtn){
+    const canInjure=!isGk && G.bench.length>0;
+    injBtn.disabled=!canInjure;
+    injBtn.style.opacity=canInjure?'1':'0.4';
   }
+  if(ov) ov.classList.add('show');
+  _li();
+}
+function closePlayerActions(){
+  _pendingActionIdx=null;
+  _pendingActionIsGk=false;
+  const ov=document.getElementById('playerActionOv');
+  if(ov) ov.classList.remove('show');
+}
+function chooseSwap(){
+  if(_pendingActionIdx===null) return;
+  fieldSwapSel=_pendingActionIdx;
+  closePlayerActions();
+  renderG();
+}
+function chooseInjury(){
+  if(_pendingActionIdx===null) return;
+  if(_pendingActionIsGk) return;
+  if(!G.bench.length) return;
+  gameMode='injury';
+  injuryOffSel=_pendingActionIdx;
+  closePlayerActions();
   renderG();
 }
 
@@ -5097,15 +5156,10 @@ function renderGameDash(){
       gf.innerHTML=`${ic('layout-grid',17)}<span>${curFormation||'Formation'}</span>`;
     }
   }
-  // Swap mode is the implicit default — tap two on-field players to swap.
-  // Injury button toggles between injury and swap modes.
-  [['gdInjury','injury','bandage','Injury']]
-    .forEach(([id,mode,icon,label])=>{
-      const el=document.getElementById(id);
-      if(!el) return;
-      el.className='gd-btn'+(gameMode===mode?' active':'');
-      el.innerHTML=`${ic(icon,17)}<span>${label}</span>`;
-    });
+  // Swap + Injury are no longer permanent buttons — tap a player on the field
+  // and an action popup offers both. The gameMode variable still drives the
+  // injury follow-up (bench tap picks the replacement); we just no longer
+  // toggle it from a permanent dashboard button.
   // Edit opens the positional-preference / team editor (not a tap-mode, so never "active").
   const edit=document.getElementById('gdEdit');
   if(edit){
@@ -5252,6 +5306,9 @@ function confInjury(outForGame){
     });
   }
   G.ps=null;
+  // Drop back into swap mode so the next field-tap opens the action popup again.
+  gameMode='swap';
+  injuryOffSel=null;
   document.getElementById('subBanner').style.display='none';
   saveActiveGame();
   renderG();
@@ -5597,9 +5654,8 @@ function renderRoster(){
   // "tap two to swap" reminder lives in the home tips carousel instead. =====
   if(G && hintC){
     let hintHtml=null, hintCol='#5bc0de';
-    if(gameMode==='injury'){
-      if(injuryOffSel!==null){ hintCol='#e94560'; hintHtml=`${ic('arrow-down',12,'#e94560')} ${fn(avail[injuryOffSel])} off — tap a bench player to bring on`; }
-      else { hintCol='#e94560'; hintHtml=`${ic('bandage',12,'#e94560')} Tap the injured player`; }
+    if(gameMode==='injury' && injuryOffSel!==null){
+      hintCol='#e94560'; hintHtml=`${ic('arrow-down',12,'#e94560')} ${fn(avail[injuryOffSel])} off — tap a bench player to bring on`;
     } else if(fieldSwapSel!==null){
       hintCol='#fff'; hintHtml=`${ic('move',12,'#fff')} Tap another to swap (incl. keeper)`;
     }
