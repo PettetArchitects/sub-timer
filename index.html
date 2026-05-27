@@ -874,6 +874,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div id="nsp" style="display:none"></div>
 </div>
 
+<!-- v2.7.17: full Settings overlay — Sound, Account, Feedback, Help. Replaces the old openSettings() shortcut into the sound picker. -->
+<div class="ov" id="appSettingsOv" onclick="if(event.target===this)closeAppSettings()">
+  <div class="ab" style="border-color:#5bc0de;max-width:380px;text-align:left;max-height:90dvh;overflow-y:auto">
+    <h2 style="text-align:center;color:#5bc0de;display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="settings" width="20" height="20" style="width:20px;height:20px;display:inline-flex"></i>Settings</h2>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+      <button onclick="closeAppSettings();openSoundPicker()" style="display:flex;align-items:center;gap:12px;padding:14px;background:#0a1628;border:1px solid #2a3550;border-radius:10px;color:#eee;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left"><span id="appSettingsSoundIcon" style="color:#5bc0de;display:flex"><i data-lucide="bell" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i></span><span style="flex:1">Sub-alert sound</span><span id="appSettingsSoundLbl" style="color:#888;font-size:12px;font-weight:600">Default</span></button>
+      <button id="appSettingsAuthBtn" style="display:flex;align-items:center;gap:12px;padding:14px;background:#0a1628;border:1px solid #2a3550;border-radius:10px;color:#eee;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left"><span style="color:#00d4aa;display:flex"><i data-lucide="cloud" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i></span><span id="appSettingsAuthLbl" style="flex:1">Sign in for cloud sync</span></button>
+      <button onclick="closeAppSettings();openFeedback()" style="display:flex;align-items:center;gap:12px;padding:14px;background:#0a1628;border:1px solid #2a3550;border-radius:10px;color:#eee;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left"><span style="color:#a78bfa;display:flex"><i data-lucide="message-square" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i></span><span style="flex:1">Send feedback</span></button>
+      <button onclick="closeAppSettings();openHelp()" style="display:flex;align-items:center;gap:12px;padding:14px;background:#0a1628;border:1px solid #2a3550;border-radius:10px;color:#eee;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left"><span style="color:#f0a500;display:flex"><i data-lucide="help-circle" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i></span><span style="flex:1">Help &amp; gestures</span></button>
+    </div>
+    <div style="text-align:center;font-size:11px;color:#555;margin-top:14px;letter-spacing:.5px">Sub Timer <span id="appSettingsVer"></span></div>
+    <button class="btn btn-o" style="margin-top:10px" onclick="closeAppSettings()">Close</button>
+  </div>
+</div>
+
+<!-- v2.7.17: Help overlay — quick gesture reference for coaches. -->
+<div class="ov" id="helpOv" onclick="if(event.target===this)document.getElementById('helpOv').classList.remove('show')">
+  <div class="ab" style="border-color:#f0a500;max-width:380px;text-align:left;max-height:90dvh;overflow-y:auto">
+    <h2 style="text-align:center;color:#f0a500;display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="help-circle" width="20" height="20" style="width:20px;height:20px;display:inline-flex"></i>Help &amp; gestures</h2>
+    <div style="font-size:13px;color:#ccc;line-height:1.55;margin-top:14px">
+      <p style="margin-bottom:10px"><strong style="color:#5bc0de">Tap</strong> a player on the field to <strong>swap</strong> them. Tap another player to complete the swap.</p>
+      <p style="margin-bottom:10px"><strong style="color:#ff7088">Long-press</strong> a player on the field to start an <strong>injury sub</strong>. Then tap a bench player to bring on.</p>
+      <p style="margin-bottom:10px"><strong style="color:#9fb3c8">Tap anywhere else</strong> on the screen to cancel an armed swap or injury.</p>
+      <p style="margin-bottom:10px"><strong style="color:#00d4aa">SUB</strong> button fires a sub immediately. <strong style="color:#ff7088">RESET</strong> (paused) restores the half's clock and XI to kickoff (tap twice to confirm).</p>
+      <p style="margin-bottom:10px"><strong style="color:#a78bfa">Drag</strong> the pitch to rotate, <strong>pinch</strong> to zoom. The View button (bottom-left of the pitch) cycles Behind / Side / Top presets.</p>
+      <p style="margin-bottom:10px">The <strong>hamburger ☰</strong> top-left holds Edit Team, Sub Settings, Settings and End game.</p>
+    </div>
+    <button class="btn btn-g" style="margin-top:14px" onclick="document.getElementById('helpOv').classList.remove('show')">Got it</button>
+  </div>
+</div>
+
 <!-- v2.7.15 + v2.7.16: Sub Settings overlay — mid-match tweaks for half length, sub frequency, players per sub, and sub strategy. -->
 <div class="ov" id="subSettingsOv" onclick="if(event.target===this)closeSubSettings()">
   <div class="ab" style="border-color:#5bc0de;max-width:380px;text-align:left;max-height:90dvh;overflow-y:auto">
@@ -2282,7 +2313,8 @@ const afl3d={
     const camera=new THREE.PerspectiveCamera(42, W/H, 1, 3000);
     const controls=new THREE.OrbitControls(camera, renderer.domElement);
     controls.enablePan=false; controls.enableDamping=true; controls.dampingFactor=0.12;
-    controls.minDistance=80; controls.maxDistance=600; controls.minPolarAngle=0.04; controls.maxPolarAngle=1.18;   // ~22° min elevation so the view never gets so oblique pills overlap or markings flatten
+    // v2.7.17: widened polar range so AFL (and all sports) can rotate down close to grass level for sweeping behind-the-goals views. Was clamped at ~22° elevation.
+    controls.minDistance=80; controls.maxDistance=600; controls.minPolarAngle=0.04; controls.maxPolarAngle=Math.PI/2-0.05;
     // Once the user drags/pinches, they've left the preset — drop the highlight (setView fires 'change', not 'start', so presets stay lit).
     controls.addEventListener('start', ()=>{ if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.remove('active')); });
     // Capture drawing-buffer dimensions before any line materials are created — Line2 shaders need this resolution to compute pixel widths.
@@ -2487,9 +2519,15 @@ const afl3d={
     if(needInit && sport && this.DIMS[sport]){ this.sport=sport; this.FIELD_W=this.DIMS[sport].W; this.FIELD_L=this.DIMS[sport].L; }
     if(needInit){ container.innerHTML=''; this.raf=null; this.init(container); }
     if(sport) this.setSport(sport);   // no-op when unchanged; swaps the surface on a sport switch
-    // Size the renderer to the (now-settled) zone — bench/hint are already laid out — then re-fit the surface to it.
+    // Size the renderer to the (now-settled) zone — bench/hint are already laid out.
+    // v2.7.17: autoFit() removed from per-update path — was snapping zoom back to the fit distance on every renderG, which made AFL feel "stuck". ResizeObserver still refits on actual size changes; setView refits on preset changes.
     const w=this.wrap.clientWidth, h=this.wrap.clientHeight;
-    if(w&&h){ this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); this._resW=this.renderer.domElement.width; this._resH=this.renderer.domElement.height; this._syncLineRes(); this.autoFit(); }
+    if(w&&h){
+      const sizeChanged=Math.abs(this.renderer.domElement.clientWidth-w)>1 || Math.abs(this.renderer.domElement.clientHeight-h)>1;
+      this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix();
+      this._resW=this.renderer.domElement.width; this._resH=this.renderer.domElement.height; this._syncLineRes();
+      if(sizeChanged) this.autoFit();   // only re-fit when the canvas actually resized
+    }
     // Rebuild pills (field + sideline bench). Each new pill picks up a tween "from" position when an active sub-swap
     // animation snapshot has its name — that's how the incoming bench player visually pulls the outgoing field player off.
     this.overlay.innerHTML=''; this.pills=[]; this.benchPills=[];
@@ -2599,7 +2637,40 @@ function openSoundPicker(){
 }
 // App settings page (home gear). Currently the same overlay as the sound
 // picker — the sound pack is the only app-level preference for now.
-function openSettings(){ openSoundPicker(); }
+// v2.7.17: full Settings overlay (Sound / Account / Feedback / Help) replaces the
+// old "Settings = sound picker only" shortcut. Coaches now reach the picker via
+// a labelled row inside the overlay instead of jumping straight to it.
+function openSettings(){
+  const ov=document.getElementById('appSettingsOv');
+  if(!ov) return;
+  // Paint the current sound pack label on the Sound row.
+  const sl=document.getElementById('appSettingsSoundLbl');
+  if(sl){
+    const pack=(typeof currentSoundPack==='function'?currentSoundPack():null)
+            || (window.SOUND_PACKS && localStorage.getItem('subTimerSoundPack'))
+            || 'classic';
+    const meta=window.SOUND_PACKS&&window.SOUND_PACKS[pack];
+    sl.textContent=meta?meta.label:pack;
+  }
+  // Paint the Account row based on cloudUser state.
+  const ab=document.getElementById('appSettingsAuthBtn');
+  const al=document.getElementById('appSettingsAuthLbl');
+  if(ab && al){
+    if(cloudUser){
+      al.textContent='Signed in: '+(cloudUser.email||'cloud');
+      ab.onclick=()=>{ closeAppSettings(); signOutCloud(); };
+    } else {
+      al.textContent='Sign in for cloud sync';
+      ab.onclick=()=>{ closeAppSettings(); document.getElementById('authOv').classList.add('show'); };
+    }
+  }
+  const v=document.getElementById('appSettingsVer');
+  if(v) v.textContent=APP_VERSION.replace(/-beta$/,'');
+  ov.classList.add('show');
+  _li();
+}
+function closeAppSettings(){ document.getElementById('appSettingsOv').classList.remove('show'); }
+function openHelp(){ document.getElementById('helpOv').classList.add('show'); _li(); }
 function closeSoundPicker(){
   document.getElementById('soundOv').classList.remove('show');
 }
@@ -2657,12 +2728,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.16-beta';
+const APP_VERSION='v2.7.17-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.17-beta':{
+    title:'AFL rotation freed + proper Settings screen + Help',
+    items:[
+      'AFL (and every sport) 3D pitch can now rotate down close to grass-level for sweeping behind-the-goals views — was clamped at ~22° elevation',
+      'Manual rotate/zoom no longer snaps back on every game-state tick — autoFit only re-runs on actual canvas resizes',
+      'Settings (hamburger) is now a full screen with Sub-alert sound, Account, Send feedback, and Help & gestures — not just a sound picker',
+      'New Help & gestures overlay summarises tap-to-swap, long-press for injury, tap-to-cancel, and pitch drag/pinch controls'
+    ]
+  },
   'v2.7.16-beta':{
     title:'Sub strategy folded into Sub Settings + bigger hamburger',
     items:[
