@@ -2352,8 +2352,11 @@ const afl3d={
     const camera=new THREE.PerspectiveCamera(42, W/H, 1, 3000);
     const controls=new THREE.OrbitControls(camera, renderer.domElement);
     controls.enablePan=false; controls.enableDamping=true; controls.dampingFactor=0.12;
-    // v2.7.17: widened polar range so AFL (and all sports) can rotate down close to grass level for sweeping behind-the-goals views. Was clamped at ~22° elevation.
-    controls.minDistance=80; controls.maxDistance=600; controls.minPolarAngle=0.04; controls.maxPolarAngle=Math.PI/2-0.05;
+    // v2.7.21: maxPolarAngle clamped to ~1.30 rad (≈ 14° elevation above horizon). v2.7.17 had widened
+    // this all the way to ~87° from zenith and the AFL view ended up flat-as-grass, which made the
+    // oval markings disappear into nothing and pills overlap badly. 14° still lets coaches do a low
+    // behind-the-goals swoop without losing readability.
+    controls.minDistance=80; controls.maxDistance=600; controls.minPolarAngle=0.04; controls.maxPolarAngle=1.30;
     // Once the user drags/pinches, they've left the preset — drop the highlight (setView fires 'change', not 'start', so presets stay lit).
     controls.addEventListener('start', ()=>{ if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.remove('active')); });
     // Capture drawing-buffer dimensions before any line materials are created — Line2 shaders need this resolution to compute pixel widths.
@@ -2767,12 +2770,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.20-beta';
+const APP_VERSION='v2.7.21-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.21-beta':{
+    title:'Full-game Sub Order, bench columns, AFL angle clamped back',
+    items:[
+      'Sub Order overlay now spans the WHOLE game, not just the current half/quarter. Past period subs come from the game log (DONE); current and future periods are simulated under the selected tab\'s strategy. Section headers mark each period, the current one tagged "NOW".',
+      'Single-wave bench used to stack as one long vertical column — now flows into a 2-column auto-fit grid (180px min) so a longer bench fits.',
+      'AFL 3D camera angle clamped back so the view doesn\'t flatten to grass level — kept the v2.7.17 "no-snap-on-render" fix, but the polar max is now ~14° elevation (was ~3° in v2.7.17, ~22° before).'
+    ]
+  },
   'v2.7.20-beta':{
     title:'Sub Order overlay — top-right button with strategy tabs',
     items:[
@@ -6352,12 +6363,14 @@ function renderBenchInto(container, swapMap, posForPlayer){
     }
 
     // Grid container — auto-fit columns based on available width.
-    // Single wave (no "later" players) → flat single column, no headers.
+    // v2.7.21: bench always flows into columns instead of a long vertical stack.
+    // - Multi-wave: each wave is its own column (existing behaviour) and cards within fill the column.
+    // - Single-wave: cards lay out in a 2-column auto-fit grid so a long bench doesn't run off the page.
     const grid=document.createElement('div');
     const useGrid=waves.length>1;
     grid.style.cssText=useGrid
       ? 'display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:start'
-      : 'display:flex;flex-direction:column;gap:4px';
+      : 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;align-items:start';
 
     if(useGrid){
       // One column per wave; label tags show "Next on" / "+5'" / "+10'" / ...
@@ -6584,79 +6597,110 @@ function renderSubOrder(){
   const info=document.getElementById('subOrderInfo');
   const list=document.getElementById('subOrderList');
   if(!info||!list||!G) return;
-  const strat=G.subStrategy||'fair';
+  const strat=_subOrderStrat||G.subStrategy||'fair';
   const stratLabels={fair:'Equal time',paired:'Paired',manual:'Manual (suggested order)',planned:'Full control plan'};
   const fmtTime=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-  const subBatches=[];
+  const sport=getSport(currentTeam);
+  const periodCount=sport.periodCount||2;
+  const periodLbl=p=>sport.periodShort?sport.periodShort(p):('Period '+p);
 
-  if(strat==='planned' && G.subPlan && G.subPlan.events && G.subPlan.events.length){
-    const events=G.subPlan.events.filter(e=>e.type==='sub' && e.half===G.half).sort((a,b)=>a.timeInHalf-b.timeInHalf);
-    events.forEach(ev=>{
-      const t=ev.timeInHalf*60;
-      const done=G.sd.includes(t)||(G.secs>=t&&G.sd.includes(t));
-      subBatches.push({time:t,off:ev.off||[],on:ev.on||[],done});
-    });
-    if(!events.length) info.textContent=`Strategy: ${stratLabels[strat]} — no plan set. Pick a different strategy or build a plan from the setup screen.`;
-    else info.textContent=`Strategy: ${stratLabels[strat]} — ${events.length} planned sub${events.length===1?'':'s'} this half.`;
-  } else {
-    // Simulate the off/on selection trigSub would make at each upcoming sub time.
-    // Snapshot working copies so the live game state isn't touched.
-    let simOn=[...G.on], simBench=[...G.bench];
-    const simPt=Object.assign({},G.pt);
-    let simSecs=G.secs;
-    const times=(typeof subTs==='function')?subTs():[];
-    times.forEach(t=>{
-      // Accrue minutes for current on-field players up to this sub time.
-      const dt=Math.max(0,t-simSecs);
-      simOn.forEach(p=>{ simPt[avail[p]]=(simPt[avail[p]]||0)+dt; });
-      simSecs=t;
-      const done=G.sd.includes(t);
-      if(simBench.length===0){ subBatches.push({time:t,off:[],on:[],done,note:'no bench'}); return; }
-      const c=Math.min(cfg.sc||1,simBench.length);
-      const eligibleOn=G.gk!==null?simOn.filter(p=>p!==G.gk):simOn.slice();
-      let off=[],on=[];
-      if(strat==='paired' && G.pairs && G.pairs.length){
-        // Pick the pair with the most cumulative minutes whose members are on the field.
-        const pairsByMins=G.pairs.map(pair=>({
-          onMembers:pair.on.filter(p=>eligibleOn.includes(p)),
-          totalMins:pair.on.reduce((s,p)=>s+(simPt[avail[p]]||0),0)
-        })).filter(x=>x.onMembers.length>0).sort((a,b)=>b.totalMins-a.totalMins);
-        if(pairsByMins.length){
-          off=pairsByMins[0].onMembers;
-          on=[...simBench].sort((a,b)=>(simPt[avail[a]]||0)-(simPt[avail[b]]||0)).slice(0,off.length);
+  // v2.7.21: walk EVERY period, not just the current one. Coaches plan the whole game.
+  // For periods at or after currentHalf we run the same off/on simulation trigSub uses,
+  // carrying simOn/simBench/simPt across period boundaries (players persist; only the
+  // half clock + G.sd reset). For periods BEFORE currentHalf we read history out of G.log.
+  let simOn=[...G.on], simBench=[...G.bench];
+  const simPt=Object.assign({},G.pt);
+  const sectionsByPeriod=new Map();
+  // Past periods — read confirmed subs from the log.
+  for(let p=1;p<G.half;p++){
+    const past=(G.log||[]).filter(e=>e.type==='sub'&&e.half===p).map(e=>({
+      time:e.time,off:[e.off],on:[e.on],done:true,past:true
+    }));
+    sectionsByPeriod.set(p,past);
+  }
+  // Periods at or after the current half — simulate.
+  const hmSec=(cfg.hm||0)*60, sfSec=(cfg.sf||1)*60;
+  for(let p=G.half;p<=periodCount;p++){
+    const batches=[];
+    let simSecs=(p===G.half)?G.secs:0;
+    // Sub times within this period (in-period seconds).
+    const times=[];
+    for(let t=sfSec;t<hmSec;t+=sfSec) times.push(t);
+    if(strat==='planned' && G.subPlan && G.subPlan.events && G.subPlan.events.length){
+      const events=G.subPlan.events.filter(e=>e.type==='sub' && e.half===p).sort((a,b)=>a.timeInHalf-b.timeInHalf);
+      events.forEach(ev=>{
+        const t=ev.timeInHalf*60;
+        const done=(p===G.half)&&G.sd.includes(t);
+        batches.push({time:t,off:ev.off||[],on:ev.on||[],done});
+      });
+    } else {
+      times.forEach(t=>{
+        const dt=Math.max(0,t-simSecs);
+        simOn.forEach(pl=>{ simPt[avail[pl]]=(simPt[avail[pl]]||0)+dt; });
+        simSecs=t;
+        const done=(p===G.half)&&G.sd.includes(t);
+        if(simBench.length===0){ batches.push({time:t,off:[],on:[],done,note:'no bench'}); return; }
+        const c=Math.min(cfg.sc||1,simBench.length);
+        const eligibleOn=G.gk!==null?simOn.filter(pl=>pl!==G.gk):simOn.slice();
+        let off=[],on=[];
+        if(strat==='paired' && G.pairs && G.pairs.length){
+          const pairsByMins=G.pairs.map(pair=>({
+            onMembers:pair.on.filter(pl=>eligibleOn.includes(pl)),
+            totalMins:pair.on.reduce((s,pl)=>s+(simPt[avail[pl]]||0),0)
+          })).filter(x=>x.onMembers.length>0).sort((a,b)=>b.totalMins-a.totalMins);
+          if(pairsByMins.length){
+            off=pairsByMins[0].onMembers;
+            on=[...simBench].sort((a,b)=>(simPt[avail[a]]||0)-(simPt[avail[b]]||0)).slice(0,off.length);
+          }
         }
-      }
-      if(!off.length){
-        // fair / manual fallback — highest mins off, lowest mins on.
-        off=[...eligibleOn].sort((a,b)=>(simPt[avail[b]]||0)-(simPt[avail[a]]||0)).slice(0,c);
-        on=[...simBench].sort((a,b)=>(simPt[avail[a]]||0)-(simPt[avail[b]]||0)).slice(0,c);
-      }
-      const cc=Math.min(off.length,on.length);
-      off=off.slice(0,cc); on=on.slice(0,cc);
-      subBatches.push({time:t,off,on,done});
-      // Apply the simulated sub to the working copies for the next iteration.
-      for(let i=0;i<cc;i++){ const idx=simOn.indexOf(off[i]); if(idx>=0) simOn[idx]=on[i]; }
-      simBench=simBench.filter(p=>!on.includes(p)).concat(off);
-    });
-    info.textContent=`Strategy: ${stratLabels[strat]||strat} — ${subBatches.length} sub${subBatches.length===1?'':'s'} projected this half.`;
+        if(!off.length){
+          off=[...eligibleOn].sort((a,b)=>(simPt[avail[b]]||0)-(simPt[avail[a]]||0)).slice(0,c);
+          on=[...simBench].sort((a,b)=>(simPt[avail[a]]||0)-(simPt[avail[b]]||0)).slice(0,c);
+        }
+        const cc=Math.min(off.length,on.length);
+        off=off.slice(0,cc); on=on.slice(0,cc);
+        batches.push({time:t,off,on,done});
+        for(let i=0;i<cc;i++){ const idx=simOn.indexOf(off[i]); if(idx>=0) simOn[idx]=on[i]; }
+        simBench=simBench.filter(pl=>!on.includes(pl)).concat(off);
+      });
+    }
+    sectionsByPeriod.set(p,batches);
+    // Accrue end-of-period minutes for whoever's still on, then clock resets.
+    const remaining=Math.max(0,hmSec-simSecs);
+    simOn.forEach(pl=>{ simPt[avail[pl]]=(simPt[avail[pl]]||0)+remaining; });
   }
 
-  if(!subBatches.length){
-    list.innerHTML=`<div style="text-align:center;color:#666;font-size:13px;padding:14px 0">No subs scheduled.</div>`;
-    return;
+  const totalUpcoming=Array.from(sectionsByPeriod.values()).flat().filter(b=>!b.past&&!b.done).length;
+  if(strat==='planned' && (!G.subPlan||!G.subPlan.events||!G.subPlan.events.length)){
+    info.textContent=`${stratLabels[strat]||strat} — no plan set. Pick a different strategy or build a plan from the setup screen.`;
+  } else {
+    info.textContent=`${stratLabels[strat]||strat} — ${totalUpcoming} upcoming sub${totalUpcoming===1?'':'s'} across the full game.`;
   }
-  list.innerHTML=subBatches.map(b=>{
-    const offHtml=(b.off||[]).map(p=>avail[p]).filter(Boolean).map(n=>`<span style="color:#f0a500;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
-    const onHtml =(b.on ||[]).map(p=>avail[p]).filter(Boolean).map(n=>`<span style="color:#00d4aa;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
-    const doneOpacity=b.done?'0.45':'1';
-    const doneTag=b.done?'<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px;letter-spacing:.5px">DONE</span>':'';
-    const noteTag=b.note?`<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px">${b.note}</span>`:'';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;margin-bottom:6px;opacity:${doneOpacity}">
-      <div style="font-family:'DSEG',monospace;font-size:16px;color:#5bc0de;font-weight:700;min-width:54px;letter-spacing:1px;font-variant-numeric:tabular-nums">${fmtTime(b.time)}</div>
-      <div style="flex:1;font-size:12px;line-height:1.4"><div>${offHtml} <span style="color:#444">→</span> ${onHtml}</div></div>
-      ${doneTag}${noteTag}
-    </div>`;
-  }).join('');
+
+  const html=[];
+  for(let p=1;p<=periodCount;p++){
+    const batches=sectionsByPeriod.get(p)||[];
+    const isCurrent=(p===G.half);
+    const titleCol=isCurrent?'#00d4aa':(p<G.half?'#666':'#9fb3c8');
+    html.push(`<div style="display:flex;align-items:center;gap:8px;margin:${p===1?'2px':'14px'} 0 6px"><div style="flex:1;height:1px;background:#1e2a45"></div><div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:${titleCol};text-transform:uppercase">${periodLbl(p)}${isCurrent?' · NOW':''}</div><div style="flex:1;height:1px;background:#1e2a45"></div></div>`);
+    if(!batches.length){
+      html.push(`<div style="text-align:center;color:#444;font-size:12px;padding:6px 0">No subs scheduled.</div>`);
+      continue;
+    }
+    batches.forEach(b=>{
+      const offHtml=(b.off||[]).map(pl=>typeof pl==='number'?avail[pl]:pl).filter(Boolean).map(n=>`<span style="color:#f0a500;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
+      const onHtml =(b.on ||[]).map(pl=>typeof pl==='number'?avail[pl]:pl).filter(Boolean).map(n=>`<span style="color:#00d4aa;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
+      const doneOpacity=b.done||b.past?'0.5':'1';
+      const doneTag=(b.done||b.past)?'<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px;letter-spacing:.5px">DONE</span>':'';
+      const noteTag=b.note?`<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px">${b.note}</span>`:'';
+      html.push(`<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;margin-bottom:6px;opacity:${doneOpacity}">
+        <div style="font-family:'DSEG',monospace;font-size:16px;color:#5bc0de;font-weight:700;min-width:54px;letter-spacing:1px;font-variant-numeric:tabular-nums">${fmtTime(b.time)}</div>
+        <div style="flex:1;font-size:12px;line-height:1.4"><div>${offHtml} <span style="color:#444">→</span> ${onHtml}</div></div>
+        ${doneTag}${noteTag}
+      </div>`);
+    });
+  }
+  list.innerHTML=html.join('');
 }
 
 // v2.7.0 — yank the launch splash once its fade-out animation has played.
