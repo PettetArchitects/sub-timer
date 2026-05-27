@@ -2787,12 +2787,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.25-beta';
+const APP_VERSION='v2.7.26-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.26-beta':{
+    title:'Plan page: time blocks with one row per player swap',
+    items:[
+      'Each sub time is now a TIME-BLOCK header (00:00 · N swaps) with the individual swaps as their own rows underneath: "Off → On"',
+      'Reads cleaner for multi-player subs and sets up per-row drag-and-drop targets in the next pass'
+    ]
+  },
   'v2.7.25-beta':{
     title:'SUB stays SUB; Plan is its own middle dashboard button',
     items:[
@@ -6757,16 +6764,37 @@ function renderSubOrder(){
       html.push(`<div style="text-align:center;color:#444;font-size:12px;padding:6px 0">No subs scheduled.</div>`);
       continue;
     }
+    // v2.7.26: each sub time is a TIME-BLOCK header with the individual player
+    // swaps as their own rows underneath. Reads cleaner for multi-player subs
+    // and gives drag-and-drop a per-row target to land on.
     batches.forEach(b=>{
-      const offHtml=(b.off||[]).map(pl=>typeof pl==='number'?avail[pl]:pl).filter(Boolean).map(n=>`<span style="color:#f0a500;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
-      const onHtml =(b.on ||[]).map(pl=>typeof pl==='number'?avail[pl]:pl).filter(Boolean).map(n=>`<span style="color:#00d4aa;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
       const doneOpacity=b.done||b.past?'0.5':'1';
       const doneTag=(b.done||b.past)?'<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px;letter-spacing:.5px">DONE</span>':'';
       const noteTag=b.note?`<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px">${b.note}</span>`:'';
-      html.push(`<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;margin-bottom:6px;opacity:${doneOpacity}">
-        <div style="font-family:'DSEG',monospace;font-size:16px;color:#5bc0de;font-weight:700;min-width:54px;letter-spacing:1px;font-variant-numeric:tabular-nums">${fmtTime(b.time)}</div>
-        <div style="flex:1;font-size:12px;line-height:1.4"><div>${offHtml} <span style="color:#444">→</span> ${onHtml}</div></div>
-        ${doneTag}${noteTag}
+      const off=(b.off||[]).map(pl=>typeof pl==='number'?avail[pl]:pl);
+      const on =(b.on ||[]).map(pl=>typeof pl==='number'?avail[pl]:pl);
+      const rowCount=Math.max(off.length,on.length);
+      let rowsHtml='';
+      if(!rowCount){
+        rowsHtml=`<div style="padding:7px 12px;color:#555;font-size:12px">No swap${b.note?` — ${b.note}`:''}</div>`;
+      } else {
+        for(let i=0;i<rowCount;i++){
+          const offN=off[i]||'—', onN=on[i]||'—';
+          rowsHtml+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid #16213e;font-size:12.5px">
+            <span style="flex:1;text-align:right;color:${off[i]?'#f0a500':'#555'};font-weight:700">${offN}</span>
+            <span style="color:#444;font-size:14px">→</span>
+            <span style="flex:1;text-align:left;color:${on[i]?'#00d4aa':'#555'};font-weight:700">${onN}</span>
+          </div>`;
+        }
+      }
+      html.push(`<div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;margin-bottom:6px;overflow:hidden;opacity:${doneOpacity}">
+        <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(91,192,222,.06);border-bottom:1px solid #16213e">
+          <div style="font-family:'DSEG',monospace;font-size:15px;color:#5bc0de;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums">${fmtTime(b.time)}</div>
+          <div style="flex:1"></div>
+          <div style="font-size:10px;color:#5bc0de;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.7">${rowCount||0} swap${rowCount===1?'':'s'}</div>
+          ${doneTag}${noteTag}
+        </div>
+        ${rowsHtml}
       </div>`);
     });
   }
