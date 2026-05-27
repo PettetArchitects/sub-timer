@@ -2582,12 +2582,16 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.6-beta';
+const APP_VERSION='v2.7.7-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.7-beta':{
+    title:'Tap-anywhere to cancel an armed swap or injury',
+    items:['v2.7.5 only listened on the pitch, so a tap on the clock, score, or bench didn\'t clear it. Now any tap outside a player pill, overlay, sub banner, or the bottom dashboard cancels the armed mode.']
+  },
   'v2.7.6-beta':{
     title:'Undo Sub clusters with SUB / RESET',
     items:[
@@ -6153,22 +6157,23 @@ initCloudAuth();
 _li(); // materialise initial-page <i data-lucide> placeholders once Lucide is in
 maybeShowWhatsNew(); // fire the changelog modal if this is a new version for this device
 
-// v2.7.5: tap an empty area of the pitch to cancel an armed swap selection or
-// in-progress injury sub. The pill click handlers stop here (target.closest
-// '.fc' check) so this only fires on background taps.
-{
-  const pm=document.getElementById('pitchMid');
-  if(pm){
-    pm.addEventListener('click',(e)=>{
-      if(e.target.closest('.fc')) return;                       // a player pill was tapped
-      if(fieldSwapSel===null && injuryOffSel===null) return;    // nothing armed
-      fieldSwapSel=null;
-      injuryOffSel=null;
-      gameMode='swap';
-      renderG();
-    });
-  }
-}
+// v2.7.7: tap ANYWHERE except a player pill / overlay / banner / dashboard to
+// cancel an armed swap selection or in-progress injury sub. v2.7.5 only listened
+// on #pitchMid which missed taps on the clock, score header, bench area, etc.
+document.addEventListener('click',(e)=>{
+  if(fieldSwapSel===null && injuryOffSel===null) return;     // nothing armed
+  // Keep these clickables out of the cancel path — they're part of the armed flow:
+  //   .fc       — field player pill (swap targets)
+  //   .fb       — bench pill (injury-sub replacement)
+  //   .ov.show  — any active modal
+  //   #subBanner — injury BACK TO BENCH / OUT FOR GAME prompt
+  //   #gameDash — bottom dashboard buttons (Undo, etc.)
+  if(e.target.closest('.fc, .fb, .ov.show, #subBanner, #gameDash')) return;
+  fieldSwapSel=null;
+  injuryOffSel=null;
+  gameMode='swap';
+  renderG();
+});
 
 // v2.7.0 — yank the launch splash once its fade-out animation has played.
 // The CSS animation 'launch-fade' totals 1.6s (700ms hold + 900ms fade); we
