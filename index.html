@@ -1493,6 +1493,15 @@ const SPORTS={
     periodShort:q=>`Q${q}`,
     breakLabels:{1:'QUARTER TIME',2:'HALF TIME',3:'THREE-QUARTER TIME'},
     formats:['afl-auskick','afl-9','afl-10','afl-11','afl-12','afl-13','afl-14','afl-15','afl-16','afl-senior']
+  },
+  // v2.7.33: basketball (FIBA-style — 4 × 10 min quarters, 5 on court, no keeper).
+  basketball:{
+    key:'basketball',label:'Basketball',icon:'basketball',available:true,
+    positions:['PG','SG','SF','PF','C'],
+    periodCount:4,
+    periodShort:q=>`Q${q}`,
+    breakLabels:{1:'QUARTER TIME',2:'HALF TIME',3:'THREE-QUARTER TIME'},
+    formats:['bball-5']
   }
 };
 function getSport(team){
@@ -1512,17 +1521,21 @@ function getPosTypes(team){return getSport(team).positions;}
 // Match-log render context — set before rendering a log so labels are sport-aware
 let _logCtxSport=SPORTS.soccer;
 function _logPeriodLabel(half){
-  if(_logCtxSport.key==='netball')return `Q${half||1}`;
+  // v2.7.33: basketball, netball + AFL all play quarters → Q1/Q2/Q3/Q4 in the log.
+  const q=_logCtxSport.key==='netball'||_logCtxSport.key==='basketball'||_logCtxSport.key==='afl';
+  if(q)return `Q${half||1}`;
   return (half||1)===1?'1H':'2H';
 }
 function _logBreakLabel(e){
   const p=e.period||e.half||1;
-  if(_logCtxSport.key==='netball')return p===1?'Q1':p===2?'HT':p===3?'Q3':'BR';
+  const q=_logCtxSport.key==='netball'||_logCtxSport.key==='basketball'||_logCtxSport.key==='afl';
+  if(q)return p===1?'Q1':p===2?'HT':p===3?'Q3':'BR';
   return 'HT';
 }
 function _logBreakName(e){
   const p=e.period||e.half||1;
-  if(_logCtxSport.key==='netball')return p===1?'Quarter Time':p===2?'Halftime':p===3?'Three-Quarter Time':'Break';
+  const q=_logCtxSport.key==='netball'||_logCtxSport.key==='basketball'||_logCtxSport.key==='afl';
+  if(q)return p===1?'Quarter Time':p===2?'Halftime':p===3?'Three-Quarter Time':'Break';
   return 'Halftime';
 }
 const POS_TYPES=SPORTS.soccer.positions; // legacy alias for soccer-only callsites
@@ -1755,7 +1768,16 @@ const FORMATIONS = {
   'nb-set':    { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
   'nb-go':     { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
   'nb-junior': { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
-  'nb-open':   { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] }
+  'nb-open':   { 'standard':[{label:'GS',x:50,y:14},{label:'GA',x:35,y:30},{label:'WA',x:65,y:30},{label:'C',x:50,y:50},{label:'WD',x:35,y:70},{label:'GD',x:65,y:70},{label:'GK',x:50,y:86}] },
+  // v2.7.33: Basketball — single 5-out set positioned in the attacking half
+  // (basket at y≈12). Positions float in real play; this is a starting-lineup snapshot.
+  'bball-5':   { 'standard':[
+    {label:'C', x:50,y:22},    // centre — low post under the basket
+    {label:'PF',x:32,y:32},    // power forward — left elbow / mid-post
+    {label:'SF',x:68,y:32},    // small forward — right elbow / wing
+    {label:'SG',x:30,y:55},    // shooting guard — left wing
+    {label:'PG',x:50,y:65}     // point guard — top of the key
+  ] }
 };
 
 // ===== AFL formations (PORTRAIT oval — length runs along y: own goal at y≈88,
@@ -1826,6 +1848,8 @@ const FORMATS = {
   'afl-15':     { sport:'afl', label:'U15',     age:'U15',   onField:18, hasGk:false, defaultHalf:20, defaultSub:6, defaultSc:3, defaultFormation:'full-18' },
   'afl-16':     { sport:'afl', label:'U16',     age:'U16',   onField:18, hasGk:false, defaultHalf:20, defaultSub:6, defaultSc:3, defaultFormation:'full-18' },
   'afl-senior': { sport:'afl', label:'Senior',  age:'Open',  onField:18, hasGk:false, defaultHalf:20, defaultSub:6, defaultSc:5, defaultFormation:'full-18' },
+  // v2.7.33: Basketball — 5 on court, FIBA quarters (per-quarter length in defaultHalf).
+  'bball-5':   { sport:'basketball', label:'5v5', age:'Standard', onField:5, hasGk:false, defaultHalf:10, defaultSub:5, defaultSc:1, defaultFormation:'standard' },
 };
 
 // Helper to get current formation positions (including GK if applicable)
@@ -1901,7 +1925,9 @@ const ICON_CUSTOM={
   // reliably even at 14-22px sizes on slow connections.
   netball:'<circle cx="12" cy="12" r="10"/><path d="M11.1 7.1a16.55 16.55 0 0 1 10.9 4"/><path d="M12 12a12.6 12.6 0 0 1-8.7 5"/><path d="M16.8 13.6a16.55 16.55 0 0 1-9 7.5"/><path d="M20.7 17a12.8 12.8 0 0 0-8.7-5 13.3 13.3 0 0 1 0-10"/><path d="M6.3 3.8a16.55 16.55 0 0 0 1.9 11.5"/>',
   // AFL Sherrin — rotated oval with a centre seam + cross-laces.
-  aflBall:'<ellipse cx="12" cy="12" rx="5.5" ry="9.5" transform="rotate(45 12 12)"/><line x1="8.2" y1="15.8" x2="15.8" y2="8.2"/><line x1="9.7" y1="13.1" x2="11" y2="14.4"/><line x1="11.4" y1="11.4" x2="12.7" y2="12.7"/><line x1="13.1" y1="9.7" x2="14.4" y2="11"/>'
+  aflBall:'<ellipse cx="12" cy="12" rx="5.5" ry="9.5" transform="rotate(45 12 12)"/><line x1="8.2" y1="15.8" x2="15.8" y2="8.2"/><line x1="9.7" y1="13.1" x2="11" y2="14.4"/><line x1="11.4" y1="11.4" x2="12.7" y2="12.7"/><line x1="13.1" y1="9.7" x2="14.4" y2="11"/>',
+  // Basketball — circle + classic curved seams (vertical seam + two side arcs).
+  basketball:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2c2.5 3 2.5 17 0 20"/><path d="M2 12c3-2.5 17-2.5 20 0"/>'
 };
 function ic(name,size,color){
   const s=size||14,c=color||'currentColor';
@@ -2217,7 +2243,8 @@ function aflPitchSvg(){
 const afl3d={
   ready(){ return !!(window.THREE && THREE.OrbitControls); },
   // World dimensions per sport (length L runs along z; width W along x). Real proportions, scaled to a common size.
-  DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15} },
+  // v2.7.33: basketball FIBA court 28×15 m; ring 3.05 m above the floor.
+  DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15}, basketball:{W:15,L:28,shape:'rect',goalH:3.05} },
   sport:'afl', FIELD_W:135, FIELD_L:165, groundGrp:null,
   renderer:null, scene:null, camera:null, controls:null, wrap:null, overlay:null, raf:null, locked:false, view:'behind',
   pills:[],          // field pills (formation %): {el, x, y}
@@ -2288,6 +2315,7 @@ const afl3d={
     const grp=new THREE.Group();
     if(this.sport==='soccer') this._buildSoccer(grp);
     else if(this.sport==='netball') this._buildNetball(grp);
+    else if(this.sport==='basketball') this._buildBasketball(grp);
     else this._buildAfl(grp);
     return grp;
   },
@@ -2348,6 +2376,45 @@ const afl3d={
       const gh=this.DIMS.netball.goalH;
       this._post(grp,0,gl,gh,0.85);
       grp.add(this._line(this._arcPts(0,gl,1.3,0,Math.PI*2,20),0xffffff,0.7,gh)); // ring at post top
+    });
+  },
+  // v2.7.33: basketball court (FIBA dimensions in metres → world units).
+  // FIELD_W=15 (x ±7.5), FIELD_L=28 (z ±14). Both ends mirrored via the s=±1 loop.
+  _buildBasketball(grp){
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
+    this._grass(grp,false);
+    // Boundary + half-court line + centre circle (FIBA centre circle r = 1.8 m).
+    grp.add(this._line([[-rx,-rz],[rx,-rz],[rx,rz],[-rx,rz],[-rx,-rz]],0xffffff,0.55));
+    grp.add(this._line([[-rx,0],[rx,0]],0xffffff,0.45));
+    grp.add(this._line(this._ellipsePts(1.8,1.8,40),0xffffff,0.4));
+    // Per-end markings (key/paint, free-throw line + circle, 3-point arc, basket, restricted area).
+    [-1,1].forEach(s=>{
+      const bl=s*rz;                 // baseline z
+      const ftDepth=5.8;             // free-throw line distance from baseline (FIBA)
+      const keyHalfW=2.45;           // key half-width (FIBA key is 4.9 m wide)
+      const ftZ=bl-s*ftDepth;        // free-throw line z (s flips sign so the line is INSIDE the court)
+      // Key (paint area).
+      grp.add(this._line([[-keyHalfW,bl],[-keyHalfW,ftZ],[keyHalfW,ftZ],[keyHalfW,bl]],0xffffff,0.45));
+      // Free-throw circle — radius 1.8 m centred on the FT line. We draw the FULL circle
+      // (the inside-the-key half is conventionally dashed but we keep it solid here).
+      grp.add(this._line(this._arcPts(0,ftZ,1.8,0,Math.PI*2,40),0xffffff,0.4));
+      // Basket position: 1.575 m from the baseline (FIBA).
+      const basketDist=1.575, bz=bl-s*basketDist;
+      // Restricted-area arc — radius 1.25 m around the basket centre, bulging away from baseline.
+      const raR=1.25;
+      grp.add(this._line(this._arcPts(0,bz,raR, s>0?Math.PI:0, s>0?Math.PI*2:Math.PI, 24),0xffffff,0.4));
+      // 3-point arc — 6.75 m from the basket centre. Real FIBA arc has straight
+      // parallel portions at the sides (3-point line 6.6 m from baseline along
+      // the sideline) but at typical viewport sizes the pure arc reads fine.
+      const tpR=6.75;
+      grp.add(this._line(this._arcPts(0,bz,tpR, s>0?Math.PI:0, s>0?Math.PI*2:Math.PI, 64),0xffffff,0.45));
+      // Backboard + basket: post behind the baseline, ring at the basket location.
+      const gh=this.DIMS.basketball.goalH;
+      this._post(grp,0,bl,gh,0.5);   // support post on the baseline
+      // Backboard width 1.8 m, mounted at ring height (drawn as a short line at gh).
+      grp.add(this._line([[-0.9,bl],[0.9,bl]],0xffffff,0.6,gh));
+      // Ring — 0.45 m diameter hoop projected horizontally at gh, centred on the basket spot.
+      grp.add(this._line(this._arcPts(0,bz,0.225,0,Math.PI*2,20),0xff8a3a,0.85,gh));
     });
   },
   // Sample points the camera must keep in frame (boundary ring/rect + goal-height) → drives auto-zoom for any sport.
@@ -2816,13 +2883,22 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.32-beta';
-// v2.7.32 changelog appended below for clarity.
+const APP_VERSION='v2.7.33-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.33-beta':{
+    title:'🏀 Basketball arrives',
+    items:[
+      'New sport: Basketball (FIBA 5v5, 4 × 10 min quarters, no keeper). Pick it from the sport picker when creating a team.',
+      'Full court rendered in 3D: boundary, half-court line, centre circle, both keys + free-throw lines & circles, FIBA 3-point arcs, restricted-area arcs, backboards, and orange rings at the goal height.',
+      'Default starting positions are a standard 5-out set in the attacking half — C (low post), PF / SF (elbows), SG (left wing), PG (top of the key). Floats however you want during play; the position label is just the kickoff snapshot.',
+      'Position tags PG / SG / SF / PF / C plug into the editor so position-aware subs work for basketball too.',
+      'Period language sport-aware: basketball + netball + AFL now show "Quarter length" / "Q1 / Q2 / Q3 / Q4" in the log and break overlays.'
+    ]
+  },
   'v2.7.32-beta':{
     title:'Formation picker: vertical popup next to the toggle',
     items:['Formation picker no longer pushes the pitch upward when it opens. Floats as a vertical popup just above the Formation toggle on the bottom-right of the pitch — each formation is a full-width row with key + short description. Tap outside to dismiss.']
@@ -3574,7 +3650,7 @@ function pickSport(sportKey){
     c.className='chip';
     c.style.cssText='padding:18px 10px;display:flex;flex-direction:column;gap:4px';
     c.innerHTML=`<div style="font-size:16px;font-weight:800;color:#e94560">${f.label}</div>
-      <div style="font-size:11px;color:#888;font-weight:600">${f.age}${sport.key==='netball'?' · '+f.defaultHalf+'min Q':''}</div>`;
+      <div style="font-size:11px;color:#888;font-weight:600">${f.age}${sport.key==='netball'||sport.key==='basketball'?' · '+f.defaultHalf+'min Q':''}</div>`;
     c.onclick=()=>pickFormat(k,sportKey);
     g.appendChild(c);
   });
@@ -3745,9 +3821,10 @@ function renderEditTeamPrefs(){
   const fmt=FORMATS[editingTeam.format]||FORMATS['7v7'];
   const p=getTeamPrefs(editingTeam);
   const sport=getSport(editingTeam);
-  const isNb=sport.key==='netball';
-  const periodWord=isNb?'Quarter length':'Half length';
-  const periodUnit=isNb?'min / quarter':'min / half';
+  // v2.7.33: netball + basketball + AFL all play quarters; soccer/futsal halves.
+  const isQ=sport.key==='netball'||sport.key==='basketball'||sport.key==='afl';
+  const periodWord=isQ?'Quarter length':'Half length';
+  const periodUnit=isQ?'min / quarter':'min / half';
   host.innerHTML='';
   // --- Formation (skip for netball — fixed positions) ---
   if(!isNb && FORMATIONS[editingTeam.format]){
@@ -3855,7 +3932,7 @@ function fillSampleSquad(){
   editingTeam.players=players;
   if(!editingTeam.name||!editingTeam.name.trim()){
     const sp=getSport(editingTeam);
-    editingTeam.name=(sp.key==='afl'?'Sample AFL Team':sp.key==='netball'?'Sample Netball Team':'Sample Soccer Team');
+    editingTeam.name=(sp.key==='afl'?'Sample AFL Team':sp.key==='netball'?'Sample Netball Team':sp.key==='basketball'?'Sample Basketball Team':'Sample Soccer Team');
     document.getElementById('teamNameInput').value=editingTeam.name;
   }
   renderEditTeam();
@@ -4255,8 +4332,8 @@ function renderFmtPicker(){
   });
   const f=FORMATS[curFmt];
   const _spt=getSport(currentTeam);
-  const isNb=_spt.key==='netball';
-  const periodWord=isNb?'min quarters':_spt.key==='soccer'?'min halves':'min periods';
+  const isQ=_spt.key==='netball'||_spt.key==='basketball'||_spt.key==='afl';
+  const periodWord=isQ?'min quarters':_spt.key==='soccer'?'min halves':'min periods';
   document.getElementById('fmtInfo').innerHTML=
     `<strong style="color:#00d4aa">${f.label}</strong> · ${f.age} · ${f.onField} on field` +
     (f.hasGk?' (incl. GK)':'') +
@@ -4656,6 +4733,8 @@ function labelToTag(lbl){
   if(/^(LM|RM|CM|LCM|RCM|M)$/.test(lbl)) return 'MID';
   if(/^(LW|RW|LWB|RWB)$/.test(lbl)) return 'WNG';
   if(/^(FW|CF|LF|RF)$/.test(lbl)) return 'FWD';
+  // v2.7.33: basketball position tags map to their own labels (no further bucketing).
+  if(/^(PG|SG|SF|PF|C)$/.test(lbl)) return lbl;
   return null;
 }
 
@@ -6248,8 +6327,8 @@ function renderRoster(){
   const hintC=document.getElementById('modeHint');
   // AFL uses the 3D viewer when Three.js is available; it manages pitchMid itself
   // (don't wipe its canvas). Falls back to the 2D oval otherwise.
-  const _3dSport=getSport(currentTeam).key;   // soccer / netball / afl — all use the 3D surface now
-  const _use3d=afl3d.ready() && ['afl','soccer','netball'].includes(_3dSport);
+  const _3dSport=getSport(currentTeam).key;   // soccer / netball / afl / basketball — all use the 3D surface now
+  const _use3d=afl3d.ready() && ['afl','soccer','netball','basketball'].includes(_3dSport);
   if(benchTop) benchTop.innerHTML='';
   if(pitchMid && !_use3d) pitchMid.innerHTML='';
   if(hintC) hintC.innerHTML='';
