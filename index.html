@@ -218,6 +218,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .afl3d-overlay .fc-pos{font-size:8px;min-width:11px;padding:1px 3px}
 .afl3d-overlay .fc-name{font-size:9px;letter-spacing:.2px}
 .afl3d-overlay .fc-mins{font-size:8px;margin-left:3px}
+.afl3d-overlay .fc-bench3d{opacity:0.7;filter:saturate(.55)}
+.afl3d-overlay .fc-bench3d.fc-bench3d-next{opacity:0.95;filter:none}
+.afl3d-overlay .fc-bench3d .fc-shirt{width:26px;height:30px}
+.afl3d-overlay .fc-bench3d .fc-name{font-size:8px}
 .afl3d-views{position:absolute;left:8px;top:8px;display:flex;gap:5px;z-index:5}
 .afl3d-views button{pointer-events:auto;background:rgba(13,18,30,.82);border:1px solid #2a3550;color:#9fb3c8;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;backdrop-filter:blur(4px)}
 .afl3d-views button.active{border-color:#5bc0de;color:#5bc0de;background:rgba(91,192,222,.16)}
@@ -340,6 +344,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 <!-- Three.js (3D pitch viewer — AFL). Loaded async; the app falls back to the 2D oval if it doesn't arrive. -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- Thick lines (Line2 + LineMaterial) — WebGL ignores `linewidth` on plain Lines, so we use the screen-space line shader. -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineGeometry.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/Line2.js"></script>
 </head>
 <body>
 <div class="app">
@@ -1911,7 +1921,8 @@ const afl3d={
   DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15} },
   sport:'afl', FIELD_W:135, FIELD_L:165, groundGrp:null,
   renderer:null, scene:null, camera:null, controls:null, wrap:null, overlay:null, raf:null, locked:false, view:'behind',
-  pills:[],   // {el, x, y}
+  pills:[],          // field pills (formation %): {el, x, y}
+  benchPills:[],     // sideline pills (world XYZ already resolved): {el, wx, wy, wz}
   worldOf(px,py,h){ return new THREE.Vector3((px/100-0.5)*this.FIELD_W, h||0, (py/100-0.5)*this.FIELD_L); },
   _ellipsePts(rx,rz,n){ const a=[]; for(let i=0;i<=n;i++){ const t=i/n*Math.PI*2; a.push([Math.cos(t)*rx, Math.sin(t)*rz]); } return a; },
   _arcPts(cx,cz,r,from,to,n){ const a=[]; for(let i=0;i<=n;i++){ const t=from+(to-from)*(i/n); a.push([cx+Math.cos(t)*r, cz+Math.sin(t)*r]); } return a; },
@@ -1925,7 +1936,25 @@ const afl3d={
     for(let k=0;k<n;k++){ const idx=(start+k)%n; if(!flag[idx]) break; const t=idx/n*Math.PI*2; out.push([cx+Math.cos(t)*r, cz+Math.sin(t)*r]); }
     return out;
   },
-  _line(pts2d,color,op,y){ const g=new THREE.BufferGeometry().setFromPoints(pts2d.map(p=>new THREE.Vector3(p[0], y==null?0.08:y, p[1]))); return new THREE.Line(g, new THREE.LineBasicMaterial({color,transparent:true,opacity:op==null?0.5:op})); },
+  // Build a Line2 with the given linewidth (in screen pixels). Falls back to a plain THREE.Line if Line2 isn't loaded.
+  _makeLineMat(color,op,lw){
+    if(!THREE.LineMaterial) return new THREE.LineBasicMaterial({color,transparent:true,opacity:op,linewidth:1});
+    const m=new THREE.LineMaterial({color, linewidth:(lw==null?2.5:lw), transparent:true, opacity:op, dashed:false});
+    m.resolution.set(this._resW||1, this._resH||1);
+    if(!this._lineMats) this._lineMats=[];
+    this._lineMats.push(m);
+    return m;
+  },
+  _line(pts2d,color,op,y,lw){
+    const Y=y==null?0.08:y, opv=op==null?0.7:op;
+    if(THREE.Line2 && THREE.LineGeometry){
+      const positions=[]; pts2d.forEach(p=>positions.push(p[0],Y,p[1]));
+      const g=new THREE.LineGeometry(); g.setPositions(positions);
+      return new THREE.Line2(g, this._makeLineMat(color,opv,lw));
+    }
+    const g=new THREE.BufferGeometry().setFromPoints(pts2d.map(p=>new THREE.Vector3(p[0],Y,p[1])));
+    return new THREE.Line(g, new THREE.LineBasicMaterial({color,transparent:true,opacity:opv}));
+  },
   // Filled grass for the current surface (ellipse for AFL, rounded-ish rectangle for soccer/netball).
   _grass(grp,oval){
     const rx=this.FIELD_W/2, rz=this.FIELD_L/2, shape=new THREE.Shape();
@@ -1934,10 +1963,28 @@ const afl3d={
     const gm=new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({color:0x16241c}));
     gm.rotation.x=-Math.PI/2; grp.add(gm);
   },
-  // A vertical post/upright from the ground to height h.
-  _post(grp,x,z,h,op){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,0,z),new THREE.Vector3(x,h,z)]); grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:op==null?0.7:op}))); },
+  // A vertical post/upright from the ground to height h. Uses Line2 so it has real screen-space thickness.
+  _post(grp,x,z,h,op){
+    const opv=op==null?0.85:op;
+    if(THREE.Line2 && THREE.LineGeometry){
+      const g=new THREE.LineGeometry(); g.setPositions([x,0,z, x,h,z]);
+      grp.add(new THREE.Line2(g, this._makeLineMat(0xffffff,opv,2.5)));
+    } else {
+      const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,0,z),new THREE.Vector3(x,h,z)]);
+      grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:opv})));
+    }
+  },
   // A horizontal bar at height h between two x's (e.g. soccer crossbar).
-  _bar(grp,x1,x2,z,h,op){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,h,z),new THREE.Vector3(x2,h,z)]); grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:op==null?0.7:op}))); },
+  _bar(grp,x1,x2,z,h,op){
+    const opv=op==null?0.85:op;
+    if(THREE.Line2 && THREE.LineGeometry){
+      const g=new THREE.LineGeometry(); g.setPositions([x1,h,z, x2,h,z]);
+      grp.add(new THREE.Line2(g, this._makeLineMat(0xffffff,opv,2.5)));
+    } else {
+      const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,h,z),new THREE.Vector3(x2,h,z)]);
+      grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:opv})));
+    }
+  },
   buildGround(){
     const grp=new THREE.Group();
     if(this.sport==='soccer') this._buildSoccer(grp);
@@ -1982,6 +2029,10 @@ const afl3d={
       this._post(grp,-gp,gl,this.DIMS.soccer.goalH,0.8); this._post(grp,gp,gl,this.DIMS.soccer.goalH,0.8);
       this._bar(grp,-gp,gp,gl,this.DIMS.soccer.goalH,0.8);
     });
+    // Corner markers — quarter-circles (real soccer ~1m radius) bulging into the field from each corner.
+    const cr=1.6;
+    [[-rx,-rz,0,Math.PI*0.5],[rx,-rz,Math.PI*0.5,Math.PI],[rx,rz,Math.PI,Math.PI*1.5],[-rx,rz,Math.PI*1.5,Math.PI*2]]
+      .forEach(([cx,cz,a0,a1])=>grp.add(this._line(this._arcPts(cx,cz,cr,a0,a1,10),0xffffff,0.55)));
   },
   _buildNetball(grp){
     const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
@@ -2012,6 +2063,12 @@ const afl3d={
     }
     [-rz,rz].forEach(z=>this._fitPts.push(new THREE.Vector3(0,goalH,z)));
   },
+  // Push the current drawing-buffer size to every line material so Line2 shaders compute pixel widths correctly.
+  _syncLineRes(){
+    if(!this._lineMats) return;
+    const w=this._resW||1, h=this._resH||1;
+    this._lineMats.forEach(m=>{ if(m.resolution) m.resolution.set(w,h); });
+  },
   // Swap the playing surface (AFL oval ↔ soccer/netball rectangle) without tearing down the renderer.
   setSport(key){
     if(!this.DIMS[key]) key='afl';
@@ -2019,7 +2076,9 @@ const afl3d={
     this.sport=key; this.FIELD_W=this.DIMS[key].W; this.FIELD_L=this.DIMS[key].L;
     if(this.scene){
       if(this.groundGrp) this.scene.remove(this.groundGrp);
+      this._lineMats=[];                                 // drop old materials before rebuilding ground
       this.groundGrp=this.buildGround(); this.scene.add(this.groundGrp);
+      this._syncLineRes();
       this._buildFitPts();
       this.setView(this.view||'behind');
     }
@@ -2040,9 +2099,12 @@ const afl3d={
     controls.minDistance=80; controls.maxDistance=600; controls.minPolarAngle=0.04; controls.maxPolarAngle=1.46;
     // Once the user drags/pinches, they've left the preset — drop the highlight (setView fires 'change', not 'start', so presets stay lit).
     controls.addEventListener('start', ()=>{ if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.remove('active')); });
+    // Capture drawing-buffer dimensions before any line materials are created — Line2 shaders need this resolution to compute pixel widths.
+    this._resW=renderer.domElement.width||W; this._resH=renderer.domElement.height||H;
+    this._lineMats=[];
     this.groundGrp=this.buildGround(); scene.add(this.groundGrp);
     this._fitMargin=1.06; this._pillScale=0.95; this._fitD=null;
-    this.scene=scene; this._buildFitPts();
+    this.scene=scene; this._buildFitPts(); this._syncLineRes();
     wrap.appendChild(renderer.domElement); wrap.appendChild(overlay);
     // View buttons + hint
     const views=document.createElement('div'); views.className='afl3d-views';
@@ -2061,7 +2123,7 @@ const afl3d={
     this.setView(this.view);
     // Resize handling
     if(this._ro) this._ro.disconnect();
-    this._ro=new ResizeObserver(()=>{ const w=wrap.clientWidth,h=wrap.clientHeight; if(w&&h){ renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); this.autoFit(); } });
+    this._ro=new ResizeObserver(()=>{ const w=wrap.clientWidth,h=wrap.clientHeight; if(w&&h){ renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); this._resW=renderer.domElement.width; this._resH=renderer.domElement.height; this._syncLineRes(); this.autoFit(); } });
     this._ro.observe(wrap);
     this.startLoop();
   },
@@ -2113,6 +2175,7 @@ const afl3d={
       const w=this.wrap.clientWidth, h=this.wrap.clientHeight, cv=this.renderer.domElement;
       if(w&&h && (Math.abs(cv.clientWidth-w)>1 || Math.abs(cv.clientHeight-h)>1)){
         this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix();
+        this._resW=cv.width; this._resH=cv.height; this._syncLineRes();
       }
       this.controls.update();
       this.renderer.render(this.scene,this.camera);
@@ -2138,6 +2201,18 @@ const afl3d={
       s=Math.max(0.5,Math.min(2.2,s));
       p.el.style.transform='translate(-50%,-50%) scale('+s.toFixed(3)+')';
     });
+    // Bench pills are already in world space (placed along the sideline) — same projection + perspective scaling.
+    this.benchPills.forEach(p=>{
+      const world=new THREE.Vector3(p.wx,p.wy,p.wz);
+      const v=world.clone().project(this.camera);
+      if(v.z>1){ p.el.style.display='none'; return; }
+      p.el.style.display='';
+      p.el.style.left=((v.x*0.5+0.5)*W)+'px';
+      p.el.style.top=((-v.y*0.5+0.5)*H)+'px';
+      let s=this._pillScale*baseD/Math.max(1,camPos.distanceTo(world));
+      s=Math.max(0.45,Math.min(1.9,s*0.9));    // bench slightly smaller than field
+      p.el.style.transform='translate(-50%,-50%) scale('+s.toFixed(3)+')';
+    });
   },
   update(container, buildPill, sport){
     if(!this.ready()) return false;
@@ -2148,10 +2223,21 @@ const afl3d={
     if(sport) this.setSport(sport);   // no-op when unchanged; swaps the surface on a sport switch
     // Size the renderer to the (now-settled) zone — bench/hint are already laid out — then re-fit the surface to it.
     const w=this.wrap.clientWidth, h=this.wrap.clientHeight;
-    if(w&&h){ this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); this.autoFit(); }
-    // Rebuild pills
-    this.overlay.innerHTML=''; this.pills=[];
-    buildPill((el,x,y)=>{ this.overlay.appendChild(el); this.pills.push({el,x,y}); });
+    if(w&&h){ this.renderer.setSize(w,h); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); this._resW=this.renderer.domElement.width; this._resH=this.renderer.domElement.height; this._syncLineRes(); this.autoFit(); }
+    // Rebuild pills (field + sideline bench).
+    this.overlay.innerHTML=''; this.pills=[]; this.benchPills=[];
+    const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
+    const addField=(el,x,y)=>{ this.overlay.appendChild(el); this.pills.push({el,x,y}); };
+    // Bench pills: world position along the right touchline, spread along the middle ~70% of the field length.
+    const addBench=(el,i,total)=>{
+      this.overlay.appendChild(el);
+      const t=total<=1?0.5:i/(total-1);
+      const wx=rx+8;                          // just outside the right sideline
+      const wy=2.5;                           // slight standing height
+      const wz=-rz*0.6 + t*(rz*1.2);          // spread along the length
+      this.benchPills.push({el, wx, wy, wz});
+    };
+    buildPill(addField, addBench);
     this.projectPills(); _li();
     return true;
   }
@@ -2290,12 +2376,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.2.2-beta';
+const APP_VERSION='v2.3.0-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.3.0-beta':{
+    title:'Bench on the sideline + bolder lines',
+    items:[
+      'Your bench now lines up on the sideline of the 3D pitch (muted grey shirts) — see your subs in context',
+      'All field markings are now drawn with proper screen-space thickness (Line2 / LineMaterial) — much more visible than the old hairline WebGL lines',
+      'Soccer corner markers are back as proper quarter-circles, not full circles'
+    ]
+  },
   'v2.2.2-beta':{
     title:'Soccer penalty arc fix',
     items:['Penalty arc (the "D") now sits correctly outside the penalty box — proper radius and span']
@@ -5323,7 +5417,8 @@ function renderRoster(){
 
   // ===== 3D pitch viewer (AFL oval / soccer & netball rectangles) — Three.js. Pills are HTML over the canvas. =====
   if(_use3d){
-    afl3d.update(pitchMid, (add)=>{
+    afl3d.update(pitchMid, (add, addBench)=>{
+      // Field players
       playerSlots.forEach(({pos,pIdx,isGk})=>{
         const isOff=nextOff.has(pIdx);
         const mins=Math.floor(G.pt[avail[pIdx]]/60);
@@ -5339,6 +5434,20 @@ function renderRoster(){
         el.onclick=()=>tapFieldPlayer(pIdx,isGk);
         add(el, pos.x, pos.y);   // pos.x=width%, pos.y=length% → afl3d.worldOf
       });
+      // Bench players lined up along the sideline (visual context — the interactive bench list lives below the pitch).
+      if(G && G.bench && G.bench.length && addBench){
+        const sc=Math.max(1, cfg.sc||1);
+        G.bench.forEach((pIdx,i)=>{
+          const isNext=i<sc;
+          const mins=Math.floor(G.pt[avail[pIdx]]/60);
+          const el=document.createElement('div');
+          el.className='fc fc-bench3d'+(isNext?' fc-bench3d-next':'');
+          el.style.cssText='position:absolute;transform:translate(-50%,-50%);z-index:1;display:flex;flex-direction:column;align-items:center';
+          const jersey=currentTeam?getPlayerNumber(currentTeam,avail[pIdx]):'';
+          el.innerHTML=`<div class="fc-shirt">${shirtSvg(jersey)}</div><div class="fc-label"><span class="fc-name">${fn(avail[pIdx])}</span><span class="fc-mins">${mins}′</span></div>`;
+          addBench(el, i, G.bench.length);
+        });
+      }
     }, _3dSport);
     return;
   }
