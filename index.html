@@ -246,7 +246,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .gd-btn.gd-reset.armed{background:linear-gradient(180deg,#e94560,#c8334b);border-color:#e94560;color:#fff;animation:pulse .5s infinite alternate}
 /* Stopwatch-style positioning: PAUSE sits on the far left when running;
    when paused, START slides to the far right via flex order. */
-/* .at-end removed in v2.7.3 — both end buttons now stay in fixed HTML order. */
+/* v2.7.4: state-based dashboard position swap.
+   - Paused (HTML order, no classes):   [RESET] [Formation] [View] [Edit] [Undo] [START]
+   - Running (ppB.at-start + subB.at-end): [PAUSE] [Formation] [View] [Edit] [Undo] [SUB]
+   Both end buttons swap together when you start/pause; middle stays put. */
+.gd-btn.at-start{order:-1}
+.gd-btn.at-end{order:999}
 .gd-btn.gd-go svg,.gd-btn.gd-pause svg,.gd-btn.gd-sub svg,.gd-btn.gd-reset svg{width:21px;height:21px}
 
 /* Diagrammatic pitch — v1.9 uses CSS 3D perspective to tilt the ground plane.
@@ -2574,12 +2579,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.3-beta';
+const APP_VERSION='v2.7.4-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.4-beta':{
+    title:'Dashboard buttons swap sides on play/pause',
+    items:[
+      'Paused / initial: [RESET] [Formation] [View] [Edit] [Undo] [START] — big green START on the far right, ready to kick off',
+      'Running: [PAUSE] [Formation] [View] [Edit] [Undo] [SUB] — PAUSE on the far left, SUB action on the far right',
+      'Both end buttons swap together when you start or pause; sub-management buttons in the middle stay put'
+    ]
+  },
   'v2.7.3-beta':{
     title:'Per-clock labels + matched heights + fixed-position SUB / PAUSE',
     items:[
@@ -4705,8 +4718,12 @@ function renderG(){
   // Score
   renderScore();
 
-  // v2.7.3 layout: ppB and subB stay in fixed positions (far right / far left).
-  // Their labels morph but they don't move. iPhone-Stopwatch-style.
+  // v2.7.4 layout: end buttons swap sides on state change.
+  //   Paused:  [RESET ... START] — primary on the right, ready to kick off.
+  //   Running: [PAUSE ... SUB]  — primary on the left, sub action on the right.
+  // Middle (Formation/View/Edit/Undo) stays put across both states.
+  const ppBtn=document.getElementById('ppB');
+  if(ppBtn) ppBtn.classList.toggle('at-start', !!G.running);
 
   // Secondary button (subB) — morphs between SUB (when running / at break) and
   // RESET (when paused mid-half). Double-tap confirm (TAP AGAIN) for RESET.
@@ -4728,6 +4745,9 @@ function renderG(){
       subBtn.innerHTML=`${ic('refresh',21)}<span>SUB</span>`;
       subBtn.onclick=manualSub;
     }
+    // v2.7.4: in SUB mode (running/at break) subB sits on the right (at-end);
+    // in RESET mode (paused) it falls back to its default HTML order on the left.
+    subBtn.classList.toggle('at-end', !inResetMode);
   }
 
   // (Our formation now shows on the bottom-bar Formation button — see renderGameDash.)
