@@ -810,6 +810,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     </div>
     <!-- Score controls rendered per-sport by renderScore() — AFL gets goals/behinds. -->
     <div id="scoreArea" style="display:flex;align-items:center;gap:6px"></div>
+    <!-- v2.7.20: Sub Order button — top-right mirror of the hamburger. Opens an overlay listing all upcoming subs in the half, regardless of chosen strategy. -->
+    <button id="subOrderBtn" onclick="openSubOrder()" aria-label="Sub Order" title="Sub Order" style="position:absolute;top:6px;right:8px;width:38px;height:38px;border-radius:10px;border:1px solid #444;background:none;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    </button>
   </div>
 
   <!-- Clock + next-sub countdown side-by-side, each with its OWN label
@@ -890,6 +894,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div id="benchWrap" style="display:none"></div>
   <div id="rosterWrap" style="display:none"></div>
   <div id="nsp" style="display:none"></div>
+</div>
+
+<!-- v2.7.20: Sub Order overlay. Strategy tabs at the top so a coach can PREVIEW the projected sub order under any strategy (Equal/Paired/Manual/Plan) without committing to it. Tap "Use this" on a non-active tab to switch. -->
+<div class="ov" id="subOrderOv" onclick="if(event.target===this)closeSubOrder()">
+  <div class="ab" style="border-color:#00d4aa;max-width:440px;text-align:left;max-height:90dvh;overflow-y:auto">
+    <h2 style="text-align:center;color:#00d4aa;display:flex;align-items:center;justify-content:center;gap:8px"><i data-lucide="list" width="20" height="20" style="width:20px;height:20px;display:inline-flex"></i>Sub Order</h2>
+    <div id="subOrderTabs" style="display:flex;gap:4px;margin:12px 0 8px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;padding:4px"></div>
+    <!-- v2.7.20: equal-time suggestion (was buried in the start-game flow) — visible
+         here so coaches can sanity-check their sub-every-X mins against an ideal. -->
+    <div id="subOrderSuggestion" style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.4;color:#ccc;display:none"></div>
+    <div id="subOrderInfo" style="font-size:12px;color:#888;text-align:center;margin:0 0 12px"></div>
+    <div id="subOrderList"></div>
+    <button id="subOrderApplyBtn" onclick="subOrderApply()" style="display:none;width:100%;margin-top:10px;padding:12px;background:linear-gradient(180deg,#1ae0b8,#00c2a0);border:none;border-radius:8px;color:#06231d;font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;font-family:inherit">Use this strategy</button>
+    <button class="btn btn-o" style="margin-top:10px" onclick="closeSubOrder()">Done</button>
+  </div>
 </div>
 
 <!-- v2.7.17: full Settings overlay — Sound, Account, Feedback, Help. Replaces the old openSettings() shortcut into the sound picker. -->
@@ -2748,12 +2767,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.19-beta';
+const APP_VERSION='v2.7.20-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.20-beta':{
+    title:'Sub Order overlay — top-right button with strategy tabs',
+    items:[
+      'New ☰-mirror button top-right opens a Sub Order overlay that lists every projected sub in the half',
+      'Strategy tabs at the top let you preview Equal / Paired / Manual / Plan side-by-side without committing. The live strategy is marked with a dot; tap a different tab and a "Use this strategy" button appears to apply it',
+      'Equal / Paired / Manual paths simulate the next waves from current playing minutes and bench order; Plan reads cfg.subPlan.events',
+      'Equal-time ideal suggestion (was previously squished into the start-game flow) now also shows up here, comparing your current sub-every-X mins to the ideal interval for your roster'
+    ]
+  },
   'v2.7.19-beta':{
     title:'Landscape: timer + score share one header row',
     items:['On landscape phones the clock + sub countdown lift up into the header next to the score (compact horizontal: digits + label inline). The whole clock band off the vertical stack — pitch grows correspondingly.']
@@ -6481,6 +6509,154 @@ function ssSetStrat(strat){
   G.subStrategy=strat;
   G.log.push({type:'sub_strategy',time:G.secs||0,strategy:strat});
   renderSsStratGrid();
+}
+
+// v2.7.20 — Sub Order overlay. Top-right button on the game screen opens it
+// at any time. Projects who comes on / off at every remaining sub time in
+// the current half. Strategy tabs let coaches preview the sub order under
+// any strategy without committing; "Use this strategy" applies the preview.
+let _subOrderStrat=null;   // currently previewed strategy (null = use live G.subStrategy)
+function openSubOrder(){
+  if(!G) return;
+  _subOrderStrat=G.subStrategy||'fair';
+  renderSubOrderTabs();
+  renderSubOrderSuggestion();
+  renderSubOrder();
+  document.getElementById('subOrderOv').classList.add('show');
+  _li();
+}
+// v2.7.20: compute the sub frequency that gets every bench player on the
+// field at least once per half (equal-time ideal) given the current roster
+// + half length + players-per-sub. Surfaces in the Sub Order overlay so the
+// coach can compare against their current cfg.sf without leaving the game.
+function renderSubOrderSuggestion(){
+  const el=document.getElementById('subOrderSuggestion');
+  if(!el||!cfg||!currentTeam) return;
+  const onF=FORMATS[curFmt]&&FORMATS[curFmt].onField;
+  const N=avail.length, B=Math.max(0,N-(onF||0)), P=Math.max(1,cfg.sc||1), H=cfg.hm||0;
+  if(!onF||B<=0||H<=0){ el.style.display='none'; return; }
+  // Rotations needed for every bench seat to cycle through once = ceil(B / P).
+  const rotations=Math.max(1,Math.ceil(B/P));
+  // Suggested sub interval (minutes), rounded to the nearest integer ≥ 1.
+  const suggested=Math.max(1,Math.round(H/rotations));
+  const matches=(suggested===cfg.sf);
+  el.style.display='block';
+  const verdict=matches
+    ?`<span style="color:#00d4aa;font-weight:800">Currently set to sub every ${cfg.sf} mins — matches the equal-time ideal ✓</span>`
+    :`Currently set to sub every <strong style="color:#f0a500">${cfg.sf} mins</strong>. Suggested: sub every <strong style="color:#00d4aa">${suggested} mins</strong> for equal time across the squad.`;
+  el.innerHTML=`<div style="font-size:10px;letter-spacing:1px;color:#00d4aa;font-weight:800;margin-bottom:4px;text-transform:uppercase">Equal-time ideal</div>
+    Roster of ${N} · ${onF} on field · ${B} on bench · ${P} swap${P>1?'s':''} per sub.<br>${verdict}`;
+}
+function closeSubOrder(){ document.getElementById('subOrderOv').classList.remove('show'); _subOrderStrat=null; }
+function renderSubOrderTabs(){
+  const wrap=document.getElementById('subOrderTabs');
+  if(!wrap||!G) return;
+  const live=G.subStrategy||'fair';
+  const opts=[
+    {k:'fair',   label:'Equal'},
+    {k:'paired', label:'Paired'},
+    {k:'manual', label:'Manual'},
+    {k:'planned',label:'Plan'}
+  ];
+  wrap.innerHTML=opts.map(o=>{
+    const active=(_subOrderStrat===o.k);
+    const isLive=(live===o.k);
+    return `<button onclick="subOrderPick('${o.k}')" style="flex:1;padding:9px 4px;background:${active?'#5bc0de1a':'transparent'};color:${active?'#5bc0de':'#9fb3c8'};border:1.5px solid ${active?'#5bc0de':'transparent'};border-radius:6px;font-size:12px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit">${o.label}${isLive?' ●':''}</button>`;
+  }).join('');
+}
+function subOrderPick(strat){
+  _subOrderStrat=strat;
+  renderSubOrderTabs();
+  renderSubOrder();
+  const btn=document.getElementById('subOrderApplyBtn');
+  if(btn) btn.style.display=(strat!==(G&&G.subStrategy))?'block':'none';
+}
+function subOrderApply(){
+  if(!G||!_subOrderStrat) return;
+  ssSetStrat(_subOrderStrat);          // commit + log
+  renderSubOrderTabs();
+  renderSubOrder();
+  document.getElementById('subOrderApplyBtn').style.display='none';
+  if(typeof saveActiveGame==='function') saveActiveGame();
+  if(typeof renderG==='function') renderG();
+}
+function renderSubOrder(){
+  const info=document.getElementById('subOrderInfo');
+  const list=document.getElementById('subOrderList');
+  if(!info||!list||!G) return;
+  const strat=G.subStrategy||'fair';
+  const stratLabels={fair:'Equal time',paired:'Paired',manual:'Manual (suggested order)',planned:'Full control plan'};
+  const fmtTime=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  const subBatches=[];
+
+  if(strat==='planned' && G.subPlan && G.subPlan.events && G.subPlan.events.length){
+    const events=G.subPlan.events.filter(e=>e.type==='sub' && e.half===G.half).sort((a,b)=>a.timeInHalf-b.timeInHalf);
+    events.forEach(ev=>{
+      const t=ev.timeInHalf*60;
+      const done=G.sd.includes(t)||(G.secs>=t&&G.sd.includes(t));
+      subBatches.push({time:t,off:ev.off||[],on:ev.on||[],done});
+    });
+    if(!events.length) info.textContent=`Strategy: ${stratLabels[strat]} — no plan set. Pick a different strategy or build a plan from the setup screen.`;
+    else info.textContent=`Strategy: ${stratLabels[strat]} — ${events.length} planned sub${events.length===1?'':'s'} this half.`;
+  } else {
+    // Simulate the off/on selection trigSub would make at each upcoming sub time.
+    // Snapshot working copies so the live game state isn't touched.
+    let simOn=[...G.on], simBench=[...G.bench];
+    const simPt=Object.assign({},G.pt);
+    let simSecs=G.secs;
+    const times=(typeof subTs==='function')?subTs():[];
+    times.forEach(t=>{
+      // Accrue minutes for current on-field players up to this sub time.
+      const dt=Math.max(0,t-simSecs);
+      simOn.forEach(p=>{ simPt[avail[p]]=(simPt[avail[p]]||0)+dt; });
+      simSecs=t;
+      const done=G.sd.includes(t);
+      if(simBench.length===0){ subBatches.push({time:t,off:[],on:[],done,note:'no bench'}); return; }
+      const c=Math.min(cfg.sc||1,simBench.length);
+      const eligibleOn=G.gk!==null?simOn.filter(p=>p!==G.gk):simOn.slice();
+      let off=[],on=[];
+      if(strat==='paired' && G.pairs && G.pairs.length){
+        // Pick the pair with the most cumulative minutes whose members are on the field.
+        const pairsByMins=G.pairs.map(pair=>({
+          onMembers:pair.on.filter(p=>eligibleOn.includes(p)),
+          totalMins:pair.on.reduce((s,p)=>s+(simPt[avail[p]]||0),0)
+        })).filter(x=>x.onMembers.length>0).sort((a,b)=>b.totalMins-a.totalMins);
+        if(pairsByMins.length){
+          off=pairsByMins[0].onMembers;
+          on=[...simBench].sort((a,b)=>(simPt[avail[a]]||0)-(simPt[avail[b]]||0)).slice(0,off.length);
+        }
+      }
+      if(!off.length){
+        // fair / manual fallback — highest mins off, lowest mins on.
+        off=[...eligibleOn].sort((a,b)=>(simPt[avail[b]]||0)-(simPt[avail[a]]||0)).slice(0,c);
+        on=[...simBench].sort((a,b)=>(simPt[avail[a]]||0)-(simPt[avail[b]]||0)).slice(0,c);
+      }
+      const cc=Math.min(off.length,on.length);
+      off=off.slice(0,cc); on=on.slice(0,cc);
+      subBatches.push({time:t,off,on,done});
+      // Apply the simulated sub to the working copies for the next iteration.
+      for(let i=0;i<cc;i++){ const idx=simOn.indexOf(off[i]); if(idx>=0) simOn[idx]=on[i]; }
+      simBench=simBench.filter(p=>!on.includes(p)).concat(off);
+    });
+    info.textContent=`Strategy: ${stratLabels[strat]||strat} — ${subBatches.length} sub${subBatches.length===1?'':'s'} projected this half.`;
+  }
+
+  if(!subBatches.length){
+    list.innerHTML=`<div style="text-align:center;color:#666;font-size:13px;padding:14px 0">No subs scheduled.</div>`;
+    return;
+  }
+  list.innerHTML=subBatches.map(b=>{
+    const offHtml=(b.off||[]).map(p=>avail[p]).filter(Boolean).map(n=>`<span style="color:#f0a500;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
+    const onHtml =(b.on ||[]).map(p=>avail[p]).filter(Boolean).map(n=>`<span style="color:#00d4aa;font-weight:700">${n}</span>`).join(', ')||'<span style="color:#666">—</span>';
+    const doneOpacity=b.done?'0.45':'1';
+    const doneTag=b.done?'<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px;letter-spacing:.5px">DONE</span>':'';
+    const noteTag=b.note?`<span style="font-size:10px;color:#666;font-weight:700;margin-left:6px">${b.note}</span>`:'';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:#0a1628;border:1px solid #1e2a45;border-radius:8px;margin-bottom:6px;opacity:${doneOpacity}">
+      <div style="font-family:'DSEG',monospace;font-size:16px;color:#5bc0de;font-weight:700;min-width:54px;letter-spacing:1px;font-variant-numeric:tabular-nums">${fmtTime(b.time)}</div>
+      <div style="flex:1;font-size:12px;line-height:1.4"><div>${offHtml} <span style="color:#444">→</span> ${onHtml}</div></div>
+      ${doneTag}${noteTag}
+    </div>`;
+  }).join('');
 }
 
 // v2.7.0 — yank the launch splash once its fade-out animation has played.
