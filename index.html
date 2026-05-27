@@ -102,18 +102,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .tmr-c.warn{color:#f0a500}.tmr-c.alert{color:#e94560;animation:pulse .5s infinite alternate}.tmr-c.sub-now{color:#e94560;animation:sub-flash .4s ease-in-out infinite alternate}
 /* Next-sub countdown digit display — same font/size, slimmer (no centiseconds) and green by default. */
 .tmr-c.tmr-sub{font-size:min(10vw,44px);letter-spacing:1.5px;color:#00d4aa}
-/* iPhone / narrow-portrait: shrink the game-screen header so the period label,
-   score controls and team names fit alongside the absolutely-positioned X.
-   Wraps the period label above the score row when the row alone is too wide. */
+/* iPhone / narrow-portrait: stack each team's label above its ± / score
+   controls, shrink the digits, and pad the top bar so it clears the ✕. */
 @media(max-width:480px){
   #s4 > div:first-child{padding-left:40px!important;padding-right:40px!important}
-  #s4 > div:first-child > div{flex-wrap:wrap!important;justify-content:center!important;row-gap:2px!important}
-  #s4 #hLbl{font-size:10px!important;letter-spacing:.5px!important}
-  #s4 #scoreArea{gap:3px!important;flex-wrap:nowrap!important}
-  #s4 #scoreArea > span:first-child,#s4 #scoreArea > span:last-child{font-size:10px!important;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.3px!important}
-  #s4 #scoreArea > button{width:24px!important;height:24px!important;font-size:14px!important}
-  #s4 #scoreArea > span[style*="font-size:40px"]{font-size:28px!important;min-width:22px!important}
-  #s4 #scoreArea > span[style*="font-size:32px"]{font-size:20px!important;margin:0 2px!important}
+  #s4 #scoreArea{gap:8px!important;align-items:center!important}
+  #s4 .team-block{flex-direction:column!important;gap:2px!important}
+  #s4 .team-label{font-size:10px!important;letter-spacing:.5px!important;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #s4 .team-controls{gap:4px!important}
+  #s4 .team-controls > button{width:24px!important;height:24px!important;font-size:14px!important}
+  #s4 .team-score{font-size:26px!important;min-width:22px!important}
+  #s4 .score-colon{font-size:22px!important;margin:0 2px!important;align-self:center!important}
 }
 @keyframes sub-flash{from{opacity:1}to{opacity:.4}}
 @keyframes pulse{from{opacity:1}to{opacity:.4}}
@@ -662,23 +661,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
 <!-- ===== S4: GAME ===== -->
 <div id="s4" class="scr" style="height:100dvh;overflow:hidden;flex-direction:column">
-  <!-- Top bar: score centred + abandon-game button -->
+  <!-- Top bar: score centred + abandon-game button. Period label moved below the clock. -->
   <div style="display:flex;flex-direction:column;align-items:center;padding:10px 12px 6px;background:#16213e;border-bottom:1px solid #333;flex-shrink:0;position:relative">
     <button onclick="abandonGame()" aria-label="End game" title="End game" style="position:absolute;top:8px;left:10px;width:28px;height:28px;border-radius:50%;border:1px solid #444;background:none;color:#888;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:11px;color:#e94560;font-weight:800;letter-spacing:1px;line-height:1.15;text-align:center;white-space:nowrap" id="hLbl">1ST HALF</span>
-      <!-- Score controls rendered per-sport by renderScore() — AFL gets goals/behinds. -->
-      <div id="scoreArea" style="display:flex;align-items:center;gap:6px"></div>
-    </div>
+    <!-- Score controls rendered per-sport by renderScore() — AFL gets goals/behinds. -->
+    <div id="scoreArea" style="display:flex;align-items:center;gap:6px"></div>
   </div>
 
-  <!-- Clock + next-sub countdown side-by-side (both same digital style). The countdown is hidden in breaks-only mode. -->
+  <!-- Clock + next-sub countdown side-by-side, period label underneath. The
+       countdown is hidden in breaks-only mode; nsi only carries non-redundant
+       status (e.g. "No subs available") — the "Next sub at" text was dropped
+       in v2.4.4 because the green countdown digit display says the same thing. -->
   <div style="text-align:center;padding:12px 0 4px;flex-shrink:0">
     <div style="display:flex;align-items:center;justify-content:center;gap:min(5vw,32px);flex-wrap:nowrap">
       <div class="tmr-c" id="clk" style="margin:0;line-height:1">00:00</div>
       <div class="tmr-c tmr-sub" id="clkSub" style="margin:0;line-height:1;color:#00d4aa;display:none">05:00</div>
     </div>
-    <div id="nsi" style="margin-top:4px;font-size:14px;color:#888;font-weight:600;letter-spacing:.3px"></div>
+    <div id="hLbl" style="margin-top:6px;font-size:13px;color:#e94560;font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap">1ST HALF</div>
+    <div id="nsi" style="margin-top:2px;font-size:12px;color:#888;font-weight:600;letter-spacing:.3px;min-height:14px"></div>
   </div>
 
   <!-- Pitch — fills the middle, flexes to whatever space is left. -->
@@ -724,7 +724,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <button class="gd-btn gd-go" id="ppB" onclick="tog()"></button>
     <button class="gd-btn gd-sub" id="subB" onclick="manualSub()"></button>
     <button class="gd-btn" id="gdFormation" onclick="toggleGameFormation()"></button>
-    <button class="gd-btn" id="gdSwap" onclick="setGameMode('swap')"></button>
     <button class="gd-btn" id="gdInjury" onclick="setGameMode('injury')"></button>
     <button class="gd-btn" id="gdEdit" onclick="editTeamFromGame()"></button>
     <button class="gd-btn" id="gdUndo" onclick="undoLastSub()"></button>
@@ -2415,12 +2414,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.4.3-beta';
+const APP_VERSION='v2.4.4-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.4.4-beta':{
+    title:'One-tap subs + period label below the clock',
+    items:[
+      'Subs now auto-apply at sub time — no more SUBS DONE confirmation banner. The cyan swap-pulse on the incoming player shows it happened; Undo Sub is still there if it\'s wrong',
+      'Swap button removed from the bottom bar — swap is the default tap-two-players gesture (also lives in the home tips carousel)',
+      '1ST HALF / Q2 / etc. now lives under the clock where the duplicate "Next sub at" text used to be — the green countdown to the right of the main clock already says that',
+      'On iPhone-width screens each team name now stacks above its score and ± buttons so the row fits cleanly'
+    ]
+  },
   'v2.4.3-beta':{
     title:'Quieter pitch — one bench, no in-game reminder',
     items:[
@@ -4457,24 +4465,25 @@ function renderG(){
     // Inline break — no popup. Coach can swap / sub, then tap to start next period.
     const breakName=(_sport.breakLabels&&_sport.breakLabels[G.half])||'BREAK';
     document.getElementById('hLbl').textContent=breakName;
+    document.getElementById('hLbl').style.color='#f0a500';
     ce.className='tmr-c warn';
     const nextPeriod=G.half+1;
     const startLbl=_sport.key==='netball'?`Start Q${nextPeriod}`:(nextPeriod===2?'Start 2nd Half':`Start Period ${nextPeriod}`);
-    ni.innerHTML=`<span style="color:#f0a500;font-weight:700">${breakName}</span> — swap or sub now if needed, then tap ${startLbl}`;
+    ni.innerHTML=`swap or sub now if needed, then tap ${startLbl}`;
     pb.innerHTML=ic('play',21)+`<span>${startLbl}</span>`;
     pb.className='gd-btn gd-go';
   } else {
     document.getElementById('hLbl').textContent=_sport.periodShort(G.half);
-    const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
-    if(subBannerUp){ce.className='tmr-c sub-now';}
-    else if(!cfg.breaksOnly&&ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}
+    document.getElementById('hLbl').style.color='#e94560';
+    if(!cfg.breaksOnly&&ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}
     if(cfg.breaksOnly){
       // Breaks-only mode (e.g. netball): rotate at the quarter/half break, no rolling subs.
       const brk=(_sport.key==='netball'||_sport.key==='afl')?'quarter break':'the break';
       ni.innerHTML=G.bench.length?`${ic('refresh',12,'#888')} Subs at ${brk}`:'No subs available';
       ni.style.display='inline-flex'; ni.style.alignItems='center'; ni.style.gap='5px'; ni.style.justifyContent='center';
     } else if(ns!==null&&G.bench.length>0){
-      ni.innerHTML=`Next sub at <span style="color:#00d4aa;font-weight:700">${fmt(ns)}</span>`;
+      // The green clkSub countdown shows "next sub at X" already — leave nsi blank.
+      ni.innerHTML='';
       updateClkSub();
     } else if(!G.bench.length){
       ni.textContent='No subs available';
@@ -4491,7 +4500,7 @@ function renderG(){
   // Sub button state
   const subBtn=document.getElementById('subB');
   if(subBtn){
-    const canSub=G.bench.length>0&&!(G.ps&&document.getElementById('subBanner').style.display!=='none');
+    const canSub=G.bench.length>0;
     subBtn.disabled=!canSub;
     subBtn.style.opacity=canSub?'1':'0.4';
   }
@@ -4565,16 +4574,17 @@ function renderScore(){
     };
     area.innerHTML=`${col('us','#00d4aa')}<span style="color:#444;font-size:24px;font-weight:300;align-self:flex-start;margin-top:18px">:</span>${col('them','#e94560')}`;
   } else {
-    area.innerHTML=`
-      <span style="font-size:13px;color:#888;font-weight:700">${teamName}</span>
-      <button onclick="adjScore('us',-1)" style="${sBtn}">−</button>
-      <span style="font-size:40px;font-weight:800;color:#00d4aa;min-width:30px;text-align:center;font-variant-numeric:tabular-nums">${G.scoreUs}</span>
-      <button onclick="adjScore('us',1)" style="${sBtn}">+</button>
-      <span style="color:#444;font-size:32px;font-weight:300;margin:0 4px">:</span>
-      <button onclick="adjScore('them',-1)" style="${sBtn}">−</button>
-      <span style="font-size:40px;font-weight:800;color:#e94560;min-width:30px;text-align:center;font-variant-numeric:tabular-nums">${G.scoreThem}</span>
-      <button onclick="adjScore('them',1)" style="${sBtn}">+</button>
-      <span style="font-size:13px;color:#888;font-weight:700">THEM</span>`;
+    // Each side wraps label + (−/score/+) in its own .team-block. On mobile
+    // the media query stacks the label above the controls so nothing collides.
+    const block=(who,colr,lbl,scoreVal)=>`<div class="team-block" style="display:flex;align-items:center;gap:6px">
+      <span class="team-label" style="font-size:13px;color:#888;font-weight:700">${lbl}</span>
+      <div class="team-controls" style="display:flex;align-items:center;gap:6px">
+        <button onclick="adjScore('${who}',-1)" style="${sBtn}">−</button>
+        <span class="team-score" style="font-size:40px;font-weight:800;color:${colr};min-width:30px;text-align:center;font-variant-numeric:tabular-nums">${scoreVal}</span>
+        <button onclick="adjScore('${who}',1)" style="${sBtn}">+</button>
+      </div>
+    </div>`;
+    area.innerHTML=`${block('us','#00d4aa',teamName,G.scoreUs)}<span class="score-colon" style="color:#444;font-size:32px;font-weight:300;margin:0 4px">:</span>${block('them','#e94560','THEM',G.scoreThem)}`;
   }
   _li();
 }
@@ -4759,9 +4769,7 @@ function tickLoop(now){
   // Update display (whole seconds — centiseconds were too noisy and overflowed on iPhone)
   const ce=document.getElementById('clk');ce.textContent=fmt(Math.floor(totalMs/1000));
   ce.className='tmr-c';
-  const subBannerUp=G.ps&&document.getElementById('subBanner').style.display!=='none';
-  if(subBannerUp){ce.className='tmr-c sub-now';}
-  else if(!cfg.breaksOnly){const ns=nxtST();if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}}
+  if(!cfg.breaksOnly){const ns=nxtST();if(ns!==null&&G.bench.length>0){const d=ns-G.secs;if(d<=10&&d>0)ce.className='tmr-c alert';else if(d<=30&&d>0)ce.className='tmr-c warn';}}
   updateClkSub();
   G.raf=requestAnimationFrame(tickLoop);
 }
@@ -4842,22 +4850,11 @@ function trigSub(){
   }
   const c=Math.min(off.length,on.length);
   G.ps={off:off.slice(0,c),on:on.slice(0,c)};
-  // Show inline banner
-  const banner=document.getElementById('subBanner');
-  const swaps=document.getElementById('subBannerSwaps');
-  let h='';
-  for(let i=0;i<c;i++){
-    h+=`<div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 0;font-size:14px;font-weight:700">
-      <span style="color:#f0a500;display:inline-flex;align-items:center;gap:4px">${fn(avail[off[i]])}${ic('arrowDown',13,'#f0a500')}</span>
-      <span style="color:#444;display:inline-flex;align-items:center">${ic('swap',13,'#444')}</span>
-      <span style="color:#00d4aa;display:inline-flex;align-items:center;gap:4px">${ic('arrowUp',13,'#00d4aa')}${fn(avail[on[i]])}</span>
-    </div>`;
-  }
-  swaps.innerHTML=h;
-  banner.style.display='block';
-  _li();
+  // Auto-apply — no SUBS DONE confirmation banner. Coach gets the cyan swap
+  // pulse on the field + the Undo Sub pill if anything's wrong.
   playSubAlert();
   if(navigator.vibrate)navigator.vibrate([200,100,200]);
+  confSub();
 }
 function toggleGameFormation(){
   const p=document.getElementById('gameFmtPicker');
@@ -5016,7 +5013,9 @@ function renderGameDash(){
       gf.innerHTML=`${ic('layout-grid',17)}<span>${curFormation||'Formation'}</span>`;
     }
   }
-  [['gdSwap','swap','move','Swap'],['gdInjury','injury','bandage','Injury']]
+  // Swap mode is the implicit default — tap two on-field players to swap.
+  // Injury button toggles between injury and swap modes.
+  [['gdInjury','injury','bandage','Injury']]
     .forEach(([id,mode,icon,label])=>{
       const el=document.getElementById(id);
       if(!el) return;
@@ -5119,10 +5118,11 @@ function confSub(){
     });
   }
   G.ps=null;
-  // Flag the just-subbed players so the 3D viewer can pulse-highlight them (green = coming on, red = going off).
-  // The renderRoster pass picks these up by player name; cleared after the animation duration so the next render is clean.
-  window._justSubbed={ inNames:new Set(on.map(p=>avail[p])), offNames:new Set(off.map(p=>avail[p])), t:Date.now() };
-  setTimeout(()=>{ window._justSubbed=null; if(typeof renderG==='function') renderG(); }, 1700);
+  // Pulse the incoming player(s) cyan on the field — same swap animation we
+  // use for two-player swaps, now bridging the bench card to the field pill.
+  // (No more red exit glow: the sideline bench pill was removed in v2.4.3.)
+  window._justSwapped={ names:new Set(on.map(p=>avail[p])), t:Date.now() };
+  setTimeout(()=>{ window._justSwapped=null; if(typeof renderG==='function') renderG(); }, 1300);
   document.getElementById('subBanner').style.display='none';
   document.getElementById('subOv').classList.remove('show');
   saveActiveGame();
