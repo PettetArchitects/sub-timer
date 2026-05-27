@@ -2229,13 +2229,13 @@ const afl3d={
     this.overlay.innerHTML=''; this.pills=[]; this.benchPills=[];
     const rx=this.FIELD_W/2, rz=this.FIELD_L/2;
     const addField=(el,x,y)=>{ this.overlay.appendChild(el); this.pills.push({el,x,y}); };
-    // Bench pills: world position along the right touchline, spread along the middle ~70% of the field length.
+    // Bench pills: world position along the right touchline, clustered around centre (real benches sit by the halfway line).
     const addBench=(el,i,total)=>{
       this.overlay.appendChild(el);
       const t=total<=1?0.5:i/(total-1);
       const wx=rx+8;                          // just outside the right sideline
       const wy=2.5;                           // slight standing height
-      const wz=-rz*0.6 + t*(rz*1.2);          // spread along the length
+      const wz=-rz*0.3 + t*(rz*0.6);          // tighter spread — 30% each side of halfway
       this.benchPills.push({el, wx, wy, wz});
     };
     buildPill(addField, addBench);
@@ -2377,12 +2377,16 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.3.1-beta';
+const APP_VERSION='v2.3.2-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.3.2-beta':{
+    title:'Tighter bench line-up',
+    items:['Bench pills now cluster nearer the halfway line on the sideline, like a real interchange bench']
+  },
   'v2.3.1-beta':{
     title:'Bigger players + broadcast-angle Side view',
     items:[
