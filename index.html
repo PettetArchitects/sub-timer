@@ -1975,11 +1975,9 @@ const afl3d={
       grp.add(this._line(this._ellipsePts(0.8,0.8,12).map(p=>[p[0],p[1]+ (gl-s*pen)]),0xffffff,0.5)); // penalty spot
       // penalty arc (D) — arc of r9 around the spot, only the part outside the box
       grp.add(this._line(this._arcPts(0,gl-s*pen,9, s>0?Math.PI*1.18:Math.PI*0.18, s>0?Math.PI*1.82:Math.PI*0.82,32),0xffffff,0.4));
-      // goal frame: two posts + crossbar (depth-set slightly behind the line)
+      // goal frame: two posts + crossbar
       this._post(grp,-gp,gl,this.DIMS.soccer.goalH,0.8); this._post(grp,gp,gl,this.DIMS.soccer.goalH,0.8);
       this._bar(grp,-gp,gp,gl,this.DIMS.soccer.goalH,0.8);
-      // corner arcs
-      [[-rx,gl],[rx,gl]].forEach(([cx,cz])=>grp.add(this._line(this._arcPts(cx,cz,2.5,0,Math.PI*2,18),0xffffff,0.3)));
     });
   },
   _buildNetball(grp){
@@ -2289,12 +2287,16 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.2.0-beta';
+const APP_VERSION='v2.2.1-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.2.1-beta':{
+    title:'Tidier soccer pitch',
+    items:['Removed the corner circles on the soccer pitch']
+  },
   'v2.2.0-beta':{
     title:'3D pitch for soccer & netball too',
     items:[
