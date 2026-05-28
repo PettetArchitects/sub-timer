@@ -901,7 +901,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <!-- v2.7.29: Formation toggle moves off the bottom dashboard onto the bottom-right of the pitch overlay (mirror of viewToggle bottom-left). Hidden for sports with a fixed single formation (netball / AFL). -->
     <button id="fmtToggle" onclick="toggleGameFormation()" aria-label="Change formation" title="Change formation" style="display:none;position:absolute;bottom:8px;right:14px;background:rgba(13,18,30,.85);border:1px solid #2a3550;color:#9fb3c8;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:800;letter-spacing:.4px;cursor:pointer;backdrop-filter:blur(4px);align-items:center;gap:6px;z-index:30;font-family:inherit"></button>
     <!-- v2.7.32: Formation picker is now a VERTICAL popup floating just above the fmtToggle button so it doesn't push the pitch upward when it opens. -->
-    <div id="gameFmtPicker" style="display:none;position:absolute;bottom:48px;right:14px;background:#0d1828;border:1px solid #2a3550;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.65);padding:6px;min-width:140px;max-height:60dvh;overflow-y:auto;z-index:31">
+    <div id="gameFmtPicker" style="display:none;position:absolute;bottom:48px;right:14px;background:#0d1828;border:1px solid #2a3550;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.65);padding:6px;min-width:78px;max-height:60dvh;overflow-y:auto;z-index:31">
       <div id="gameFmtGrid" style="display:flex;flex-direction:column;gap:4px"></div>
     </div>
   </div>
@@ -3132,12 +3132,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.85-beta';
+const APP_VERSION='v2.7.86-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.86-beta':{
+    title:'Fix: formation picker on the game pitch was obscuring the player chips',
+    items:[
+      'Game-screen formation popup compressed to formation key only (descriptions dropped). The "2-3-1 Balanced default / 3-2-1 Defensive / …" full-width list was sitting on top of the pitch and hiding the player shirts behind it. Items are now narrow centred chips; picker min-width down from 140px to 78px.'
+    ]
+  },
   'v2.7.85-beta':{
     title:'Settings modal contents pulled into the drawer',
     items:[
@@ -6427,12 +6433,12 @@ function toggleGameFormation(){
     g.innerHTML='';
     const forms=FORMATIONS[curFmt];
     Object.keys(forms).forEach(k=>{
+      // v2.7.86: compact items — formation key only (descriptions dropped). Keeps the
+      // popup narrow so it doesn't obscure player chips on the pitch underneath.
       const c=document.createElement('div');
-      // v2.7.32: vertical-popup row — full-width tap target with the formation key + a short description.
       const sel=(curFormation===k);
-      c.style.cssText=`display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;background:${sel?'rgba(91,192,222,.16)':'transparent'};border:1px solid ${sel?'#5bc0de':'transparent'}`;
-      const short=FORMATION_SHORTS[k]||'';
-      c.innerHTML=`<div style="font-weight:800;font-size:13px;letter-spacing:.3px;color:${sel?'#5bc0de':'#eee'};min-width:34px">${k}</div>${short?`<div style="font-size:10px;color:#888;font-weight:500;line-height:1.2;flex:1;text-align:right">${short}</div>`:''}`;
+      c.style.cssText=`padding:8px 12px;border-radius:6px;cursor:pointer;background:${sel?'rgba(91,192,222,.16)':'transparent'};border:1px solid ${sel?'#5bc0de':'transparent'};font-weight:800;font-size:13px;letter-spacing:.3px;color:${sel?'#5bc0de':'#eee'};text-align:center`;
+      c.textContent=k;
       c.onclick=()=>{ selectGameFormation(k); };
       g.appendChild(c);
     });
