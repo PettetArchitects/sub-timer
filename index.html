@@ -2928,12 +2928,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.61-beta';
+const APP_VERSION='v2.7.62-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.62-beta':{
+    title:'Plan page: pitch defaults to landscape top-down on open',
+    items:[
+      'Opening the Plan page now snaps the 3D pitch to a landscape top-down view (\'top-h\') — tactical-board feel by default. Coach can still tap the Behind/Side/Top buttons in the canvas overlay to change views; we only force landscape on the initial open, not on every re-render.',
+      'Closing the Plan page resets the view back to \'behind\' so the live game screen lands on its default touchline perspective (top-down doesn\'t work as well for live tracking).'
+    ]
+  },
   'v2.7.61-beta':{
     title:'Plan page: Players-per-sub stepper back — always visible above the field',
     items:[
@@ -7164,6 +7171,11 @@ function openSubOrder(){
   renderSubOrderControls();
   renderSubOrderSuggestion();
   renderPlanRosterOverview();
+  // v2.7.62: default the pitch to the landscape top-down ('top-h') view when the
+  // Plan page opens — tactical-board feel for planning. Coach can still tap the
+  // Behind/Side/Top buttons in the canvas overlay to change views; we only force
+  // landscape on the initial open, not on every re-render (scrub steps etc.).
+  if(typeof afl3d!=='undefined' && afl3d.ready && afl3d.ready()) afl3d.setView('top-h');
   renderSubOrder();
   // v2.7.61: planTopSteppers row (Players per sub) is now always visible — removed the CUSTOM-mode hide.
   // v2.7.59: CUSTOM-only Save + Lineup actions live in the hamburger menu.
@@ -7232,6 +7244,10 @@ function closeSubOrder(){
   // v2.7.53: tear down the live-clock ticker so it doesn't keep firing after the page closes.
   if(_planLiveTickId){ clearInterval(_planLiveTickId); _planLiveTickId=null; }
   _planTimeline=null; _planScrubIdx=0;
+  // v2.7.62: reset to 'behind' on exit so the live game screen lands on its
+  // default perspective (Plan page forces 'top-h' on entry — that view shouldn't
+  // bleed into the game screen which works best from the touchline).
+  if(typeof afl3d!=='undefined' && afl3d.view==='top-h') afl3d.view='behind';
   // v2.7.54: hop the 3D pitch back. afl3d was last pointed at #planFieldWrap by
   // renderPlanField3D — without this call the game screen's #pitchMid keeps its
   // orphaned canvas (frozen frame, stale pills at last-projected coords). renderG
