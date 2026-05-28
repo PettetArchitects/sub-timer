@@ -952,7 +952,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
         </span>
       </div>
     </div>
-    <div id="subOrderSuggestion" style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.5;color:#ccc;display:none"></div>
+    <!-- v2.7.51: equal-time tile removed — was a big block for info the steppers already telegraph (current sub-every is right there, ideal is implicit if the coach knows the roster). -->
+    <div id="subOrderSuggestion" style="display:none"></div>
     <!-- v2.7.48: starting-XI + bench overview so the coach sees the whole roster status at a glance — not just the swap rows. -->
     <div id="planRosterOverview" style="margin-bottom:14px"></div>
     <div id="subOrderInfo" style="font-size:13px;color:#888;text-align:center;margin:0 0 14px"></div>
@@ -2901,12 +2902,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.50-beta';
+const APP_VERSION='v2.7.51-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.51-beta':{
+    title:'Plan page: full-width pitch + Equal-time tile gone',
+    items:[
+      'On-field card is now full-width across the Plan page with a 420px tall 3D pitch. Bench drops to a slim chip strip below the pitch — same flow as the live game screen (pitch fills the view, bench underneath).',
+      'Equal-time ideal block hidden — was a big chunk of text for info the sub-every / players-per-sub steppers already telegraph. The roster math is one line of mental arithmetic; no need for a whole tile.'
+    ]
+  },
   'v2.7.50-beta':{
     title:'Plan Ahead hides the AUTO/CUSTOM toggle — you\'re in build mode',
     items:['When you reach the Plan page via "Plan ahead" (team action menu), the AUTO/CUSTOM tab strip is hidden — you\'re explicitly here to BUILD a custom plan, no point offering AUTO as an alternative until you leave. The toggle still shows on the Plan page when opened from Play Now / mid-game (where the choice still matters).']
@@ -7177,21 +7185,22 @@ function renderPlanProfiles(){
 // #planFieldWrap; when the coach taps Done and returns to s4, renderG calls
 // afl3d.update(pitchMid, ...) which moves it back. ON BENCH stays as a
 // flat chip row. Formation chip picker sits in the card header.
+// v2.7.51 — Plan-page roster: full-width pitch + slim bench strip below.
+// Mirrors the live-game screen flow (pitch fills most of the view, bench
+// underneath). The old side-by-side grid was making the pitch a postage stamp.
 function renderPlanRosterOverview(){
   const host=document.getElementById('planRosterOverview');
   if(!host||!G||!avail) return;
   const onIdx=G.on||[], benchIdx=G.bench||[];
-  const benchChipsHtml=benchIdx.map(i=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;background:rgba(240,165,0,.10);border:1px solid rgba(240,165,0,.35);border-radius:14px;font-size:12px;font-weight:700;color:#f0a500">${fn(avail[i])}</span>`).join('');
-  host.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px">
-    <div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;gap:8px">
-        <div style="font-size:10px;letter-spacing:1.2px;color:#00d4aa;font-weight:800;text-transform:uppercase">On field · ${onIdx.length}</div>
-        <div id="planFormationChips" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></div>
-      </div>
-      <div id="planFieldWrap" style="height:300px;position:relative;background:#06101c;border-top:1px solid #1e2a45"></div>
+  const benchChipsHtml=benchIdx.map(i=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(240,165,0,.10);border:1px solid rgba(240,165,0,.35);border-radius:14px;font-size:12px;font-weight:700;color:#f0a500;white-space:nowrap">${fn(avail[i])}</span>`).join('');
+  host.innerHTML=`<div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;gap:8px">
+      <div style="font-size:10px;letter-spacing:1.2px;color:#00d4aa;font-weight:800;text-transform:uppercase">On field · ${onIdx.length}</div>
+      <div id="planFormationChips" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></div>
     </div>
-    <div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;letter-spacing:1.2px;color:#f0a500;font-weight:800;margin-bottom:8px;text-transform:uppercase">On bench · ${benchIdx.length}</div>
+    <div id="planFieldWrap" style="height:420px;position:relative;background:#06101c;border-top:1px solid #1e2a45;border-bottom:1px solid #1e2a45"></div>
+    <div style="padding:8px 12px">
+      <div style="font-size:10px;letter-spacing:1.2px;color:#f0a500;font-weight:800;margin-bottom:6px;text-transform:uppercase">On bench · ${benchIdx.length}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">${benchChipsHtml||'<span style="font-size:12px;color:#666">no subs available</span>'}</div>
     </div>
   </div>`;
