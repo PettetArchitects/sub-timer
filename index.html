@@ -960,25 +960,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
       <span style="font-size:10px;letter-spacing:1px;color:#a78bfa;font-weight:800;text-transform:uppercase;margin-right:2px">Profiles</span>
       <div id="planProfilesList" style="display:flex;flex-wrap:wrap;gap:6px;flex:1"></div>
     </div>
-    <!-- Sub-frequency + group-size steppers. Hidden in CUSTOM mode (v2.7.55) — the
-         dual-clock scrub bar at the top of the pitch card replaces these. -->
-    <div id="planTopSteppers" style="display:flex;gap:8px;margin-bottom:12px">
-      <div style="flex:1;display:flex;align-items:center;justify-content:space-between;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.3);border-radius:8px;padding:8px 12px">
-        <span style="font-size:12px;color:#00d4aa;font-weight:700;letter-spacing:.3px">Sub every</span>
-        <span style="display:inline-flex;align-items:center;gap:8px">
-          <button onclick="soAdj('sf',-1)" aria-label="Sub more often" style="width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:16px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
-          <span id="soSfV" style="font-size:15px;font-weight:800;color:#00d4aa;min-width:30px;text-align:center;font-variant-numeric:tabular-nums">5</span>
-          <button onclick="soAdj('sf',1)" aria-label="Sub less often" style="width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:16px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
-          <span style="font-size:11px;color:#888;font-weight:600;margin-left:2px">min</span>
-        </span>
-      </div>
-      <div style="flex:1;display:flex;align-items:center;justify-content:space-between;background:rgba(91,192,222,.06);border:1px solid rgba(91,192,222,.3);border-radius:8px;padding:8px 12px">
+    <!-- v2.7.61: stripped this row to JUST Players-per-sub (the only Plan-page config
+         that's not already in the dual clock anchor — half-length and sub-frequency
+         both live there now). Always visible regardless of AUTO/CUSTOM so the coach
+         always sees how many bodies a sub event will swap. -->
+    <div id="planTopSteppers" style="display:flex;justify-content:center;margin-bottom:12px">
+      <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(91,192,222,.06);border:1px solid rgba(91,192,222,.3);border-radius:8px;padding:6px 14px">
         <span style="font-size:12px;color:#5bc0de;font-weight:700;letter-spacing:.3px">Players per sub</span>
-        <span style="display:inline-flex;align-items:center;gap:8px">
-          <button onclick="soAdj('sc',-1)" aria-label="Fewer per sub" style="width:26px;height:26px;border-radius:50%;border:none;background:rgba(91,192,222,.2);color:#5bc0de;font-size:16px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
-          <span id="soScV" style="font-size:15px;font-weight:800;color:#5bc0de;min-width:18px;text-align:center;font-variant-numeric:tabular-nums">2</span>
-          <button onclick="soAdj('sc',1)" aria-label="More per sub" style="width:26px;height:26px;border-radius:50%;border:none;background:rgba(91,192,222,.2);color:#5bc0de;font-size:16px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
-        </span>
+        <button onclick="soAdj('sc',-1)" aria-label="Fewer per sub" style="width:24px;height:24px;border-radius:50%;border:none;background:rgba(91,192,222,.2);color:#5bc0de;font-size:15px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
+        <span id="soScV" style="font-size:15px;font-weight:800;color:#5bc0de;min-width:18px;text-align:center;font-variant-numeric:tabular-nums">2</span>
+        <button onclick="soAdj('sc',1)" aria-label="More per sub" style="width:24px;height:24px;border-radius:50%;border:none;background:rgba(91,192,222,.2);color:#5bc0de;font-size:15px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
       </div>
     </div>
     <!-- v2.7.51: equal-time tile removed — was a big block for info the steppers already telegraph (current sub-every is right there, ideal is implicit if the coach knows the roster). -->
@@ -2937,12 +2928,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.60-beta';
+const APP_VERSION='v2.7.61-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.61-beta':{
+    title:'Plan page: Players-per-sub stepper back — always visible above the field',
+    items:[
+      'Players-per-sub stepper returned to a compact centred pill above the field card; now visible in both AUTO and CUSTOM (was hidden in CUSTOM along with the rest of the steppers row in v2.7.55). Half-length and sub-frequency stay in the dual clock anchor up top; only Players-per-sub needs its own control.'
+    ]
+  },
   'v2.7.60-beta':{
     title:'Plan page: always show both clocks — same shape as the game screen',
     items:[
@@ -7168,12 +7165,8 @@ function openSubOrder(){
   renderSubOrderSuggestion();
   renderPlanRosterOverview();
   renderSubOrder();
-  // v2.7.55: CUSTOM mode hides the standalone top steppers (their controls move
-  // inline into the dual-clock scrub bar) — same toggle handles AUTO showing them.
-  const ts=document.getElementById('planTopSteppers');
-  if(ts) ts.style.display=(_subOrderStrat==='planned')?'none':'flex';
-  // v2.7.59: CUSTOM-only Save + Lineup actions now live in the hamburger menu —
-  // hide the whole group in AUTO so the menu reads cleanly.
+  // v2.7.61: planTopSteppers row (Players per sub) is now always visible — removed the CUSTOM-mode hide.
+  // v2.7.59: CUSTOM-only Save + Lineup actions live in the hamburger menu.
   const customGroup=document.getElementById('planMenuCustomGroup');
   if(customGroup) customGroup.style.display=(_subOrderStrat==='planned')?'block':'none';
   // v2.7.46: saved-profile chips visibility also follows the toggle.
@@ -7547,10 +7540,8 @@ function subOrderPick(strat){
   renderSubOrder();
   const btn=document.getElementById('subOrderApplyBtn');
   if(btn) btn.style.display='none';     // never needed now
-  // v2.7.55: CUSTOM mode hides the top steppers (controls move into the clock bar).
-  const ts=document.getElementById('planTopSteppers');
-  if(ts) ts.style.display=(strat==='planned')?'none':'flex';
-  // v2.7.59: CUSTOM-only menu items (Save / Lineup) toggle via the group wrapper now.
+  // v2.7.61: planTopSteppers stays visible in both modes.
+  // v2.7.59: CUSTOM-only menu items (Save / Lineup) toggle via the group wrapper.
   const customGroup=document.getElementById('planMenuCustomGroup');
   if(customGroup) customGroup.style.display=(strat==='planned')?'block':'none';
   // Saved-profile chips also CUSTOM-only.
