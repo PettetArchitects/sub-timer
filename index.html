@@ -2928,12 +2928,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.62-beta';
+const APP_VERSION='v2.7.63-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.63-beta':{
+    title:'Plan Ahead jumps straight to the Plan page',
+    items:[
+      'Tapping "Plan ahead" on the team action menu now lands directly on the Plan page — the squad-picker hop is gone. The full roster is loaded as the available pool (you can still tweak the lineup via the Lineup item in the hamburger), the game is auto-prepped in CUSTOM build mode, and the pitch + sub timeline are ready to edit on entry.'
+    ]
+  },
   'v2.7.62-beta':{
     title:'Plan page: pitch defaults to landscape top-down on open',
     items:[
@@ -3858,15 +3864,22 @@ function teamActionPlayNow(){
 function teamActionPlanAhead(){
   const id=_teamActionId; closeTeamActions();
   if(id==null) return;
-  // v2.7.39: Plan ahead drops the coach onto the squad page in CUSTOM intent.
-  // We mark a one-shot flag that startFromSquad checks, so when the Plan overlay
-  // opens it lands on the CUSTOM tab (Edit Lineup button visible) instead of AUTO.
-  // v2.7.50: ALSO sticky-flag _planBuildMode so the AUTO/CUSTOM toggle is hidden
-  // for the entire Plan-page session — the coach explicitly came here to BUILD
-  // a custom plan, no point offering AUTO as an alternative until they leave.
-  selectTeam(id);
+  // v2.7.63: Plan ahead now jumps STRAIGHT to the Plan page (no squad-picker hop).
+  // selectTeam already selects every player on the roster by default, so the full
+  // squad becomes the available pool. We then build avail, quickStart (auto-assigns
+  // lineup + creates G), and openSubOrder lands the coach on the Plan page. All
+  // showScr calls happen synchronously so the s1 / s4 transitions don't paint.
+  // _planAheadCustom + _planBuildMode keep the page in CUSTOM build context.
   _planAheadCustom=true;
   _planBuildMode=true;
+  selectTeam(id);
+  if(!currentTeam) return;
+  avail=[...sel].map(i=>currentTeam.players[i]);
+  if(typeof setDisplayNameList==='function') setDisplayNameList(avail);
+  cfg.subPlanStale=true;
+  if(_planAheadCustom){ cfg.subStrategy='planned'; _planAheadCustom=false; }
+  if(typeof quickStart==='function') quickStart();
+  if(typeof openSubOrder==='function') openSubOrder();
 }
 let _planAheadCustom=false;
 let _planBuildMode=false;   // v2.7.50: sticky build-context flag — hides the AUTO/CUSTOM toggle on the Plan page
