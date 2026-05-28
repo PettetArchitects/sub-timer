@@ -61,6 +61,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 /* Screens leave room for the fixed brand bar (top) and tab bar (bottom). s4/subOrderOv handle the bottom-band offset via their inline padding, but ALL screens push content below the top brand bar. */
 .scr{padding-top:calc(34px + env(safe-area-inset-top));padding-bottom:calc(58px + env(safe-area-inset-bottom));box-sizing:border-box}
 #s4.active,#subOrderOv.active{padding-bottom:0}
+/* v2.7.80: landing pages don't show the tab bar, so they don't need the bottom reservation either. */
+#home.active,#sportPicker.active,#gradePicker.active{padding-bottom:env(safe-area-inset-bottom)}
 .hdr h1{font-size:18px;font-weight:700;letter-spacing:1px}
 .hdr .sub{font-size:11px;color:#aaa;margin-top:1px}
 .hdr-row{display:flex;align-items:center;justify-content:space-between}
@@ -566,6 +568,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
         </div>
       </div>
     </div>
+    <!-- v2.7.80: coach quote — rotates daily, always visible on home. Sits above tips so it reads first. -->
+    <div id="quoteCard" style="background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px"></div>
     <div id="tipsCard" style="display:none;background:rgba(91,192,222,.08);border:1px solid rgba(91,192,222,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:8px">
         <span style="font-size:10px;color:#5bc0de;font-weight:700;letter-spacing:1.5px;display:inline-flex;align-items:center;gap:5px"><i data-lucide="lightbulb" width="12" height="12" style="width:12px;height:12px;display:inline-flex"></i>TIP <span id="tipNum">1</span>/<span id="tipTotal">6</span></span>
@@ -1585,6 +1589,16 @@ const SPORTS={
     periodShort:q=>`Q${q}`,
     breakLabels:{1:'QUARTER TIME',2:'HALF TIME',3:'THREE-QUARTER TIME'},
     formats:['bball-5']
+  },
+  // v2.7.80: water polo — 7-a-side in a 30×20 m pool, 4 quarters, GK + 6 outfield.
+  // Rolling subs allowed; the sub-timer logic stays the same as soccer (GK lock + outfield rotation).
+  waterpolo:{
+    key:'waterpolo',label:'Water Polo',icon:'waves',available:true,
+    positions:['GK','CF','CB','LW','RW','LD','RD','P'],
+    periodCount:4,
+    periodShort:q=>`Q${q}`,
+    breakLabels:{1:'QUARTER TIME',2:'HALF TIME',3:'THREE-QUARTER TIME'},
+    formats:['wp-junior','wp-senior']
   }
 };
 function getSport(team){
@@ -1860,6 +1874,26 @@ const FORMATIONS = {
     {label:'SF',x:68,y:32},    // small forward — right elbow / wing
     {label:'SG',x:30,y:55},    // shooting guard — left wing
     {label:'PG',x:50,y:65}     // point guard — top of the key
+  ] },
+  // Water polo — classic umbrella attack: GK at goal line, CF (hole set) deep on the 2m line,
+  // 2 wings, 2 drivers (flat), 1 point/CB top of the arc, 1 hole defender behind CF.
+  'wp-junior': { 'umbrella':[
+    {label:'GK',x:50,y:95},   // in goal
+    {label:'CF',x:50,y:15},   // hole set — opposite end, on 2m
+    {label:'LW',x:18,y:32},   // left wing
+    {label:'RW',x:82,y:32},   // right wing
+    {label:'LD',x:32,y:48},   // left driver
+    {label:'RD',x:68,y:48},   // right driver
+    {label:'P', x:50,y:55}    // point — top of the umbrella
+  ] },
+  'wp-senior': { 'umbrella':[
+    {label:'GK',x:50,y:95},
+    {label:'CF',x:50,y:15},
+    {label:'LW',x:18,y:32},
+    {label:'RW',x:82,y:32},
+    {label:'LD',x:32,y:48},
+    {label:'RD',x:68,y:48},
+    {label:'P', x:50,y:55}
   ] }
 };
 
@@ -1933,6 +1967,9 @@ const FORMATS = {
   'afl-senior': { sport:'afl', label:'Senior',  age:'Open',  onField:18, hasGk:false, defaultHalf:20, defaultSub:6, defaultSc:5, defaultFormation:'full-18' },
   // v2.7.33: Basketball — 5 on court, FIBA quarters (per-quarter length in defaultHalf).
   'bball-5':   { sport:'basketball', label:'5v5', age:'Standard', onField:5, hasGk:false, defaultHalf:10, defaultSub:5, defaultSc:1, defaultFormation:'standard' },
+  // v2.7.80: Water polo — 7-a-side (1 GK + 6 outfield), 4 quarters. Junior pools use the 25m field; senior uses the FINA 30m.
+  'wp-junior': { sport:'waterpolo', label:'Junior 25m', age:'U14 / Junior', onField:7, hasGk:true, defaultHalf:6, defaultSub:3, defaultSc:1, defaultFormation:'umbrella' },
+  'wp-senior': { sport:'waterpolo', label:'Senior 30m', age:'Open',         onField:7, hasGk:true, defaultHalf:8, defaultSub:4, defaultSc:1, defaultFormation:'umbrella' },
 };
 
 // Helper to get current formation positions (including GK if applicable)
@@ -2327,7 +2364,7 @@ const afl3d={
   ready(){ return !!(window.THREE && THREE.OrbitControls); },
   // World dimensions per sport (length L runs along z; width W along x). Real proportions, scaled to a common size.
   // v2.7.33: basketball FIBA court 28×15 m; ring 3.05 m above the floor.
-  DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15}, basketball:{W:15,L:28,shape:'rect',goalH:3.05} },
+  DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15}, basketball:{W:15,L:28,shape:'rect',goalH:3.05}, waterpolo:{W:20,L:30,shape:'rect',goalH:0.9} },
   sport:'afl', FIELD_W:135, FIELD_L:165, groundGrp:null,
   renderer:null, scene:null, camera:null, controls:null, wrap:null, overlay:null, raf:null, locked:false, view:'behind',
   pills:[],          // field pills (formation %): {el, x, y}
@@ -2937,6 +2974,11 @@ function showScr(id){
 function renderViewSwitcher(){
   const host=document.getElementById('bottomTabBar');
   if(!host) return;
+  // v2.7.80: hide the tab bar on landing-style screens (no team context selected).
+  // The Game / Plan / Team tabs are only meaningful once the coach is INSIDE a team.
+  const onLanding=['home','sportPicker','gradePicker'].some(id=>{const el=document.getElementById(id);return el&&el.classList.contains('active');});
+  if(onLanding){ host.style.display='none'; return; }
+  host.style.display='flex';
   // Active view = whichever .scr currently has .active. Default to Game-context.
   let active='game';
   const ov=document.getElementById('subOrderOv');
@@ -2999,6 +3041,28 @@ const HOME_TIPS=[
   {icon:'goal',title:'Tag who scored each goal',desc:"When you add a goal, pick the scorer from the on-field players. Shows up in your match log."},
   {icon:'cloud',title:'Sync across devices',desc:"Sign in (top-right). Your teams and match history follow you to any phone or iPad."}
 ];
+// v2.7.80 — short coach-friendly quotes that rotate on the home page. Day-stable
+// (picks one per local date) so the home isn't visually jittery on repeated opens.
+const COACH_QUOTES=[
+  ['"Every kid deserves a turn."','grassroots mantra'],
+  ['"Coach the next play, not the last mistake."','Bill Belichick'],
+  ['"The strength of the team is each individual member."','Phil Jackson'],
+  ['"Hard work beats talent when talent doesn\'t work hard."','Tim Notke'],
+  ['"You miss 100% of the shots you don\'t take."','Wayne Gretzky'],
+  ['"Don\'t tell players what to do. Show them why."','John Wooden'],
+  ['"Make sure every kid plays. The win takes care of itself."','grassroots mantra'],
+  ['"Practice makes permanent — not perfect."','common coaching note'],
+  ['"What you do in practice you\'ll do in the game."','Vince Lombardi'],
+  ['"Treat the bench like the field — it\'s where the next play starts."','common coaching note']
+];
+function renderQuote(){
+  const card=document.getElementById('quoteCard');
+  if(!card) return;
+  const dayIdx=Math.floor((new Date()).setHours(0,0,0,0)/86400000)%COACH_QUOTES.length;
+  const [text,by]=COACH_QUOTES[dayIdx];
+  card.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><span style="color:#a78bfa;flex-shrink:0;margin-top:1px"><i data-lucide="quote" width="14" height="14" style="width:14px;height:14px;display:inline-flex"></i></span><div style="flex:1;min-width:0"><div style="font-size:13px;color:#eee;font-weight:600;font-style:italic;line-height:1.4">${text}</div><div style="font-size:11px;color:#888;font-weight:600;margin-top:3px">— ${by}</div></div></div>`;
+  _li();
+}
 function renderTip(){
   const card=document.getElementById('tipsCard');
   if(!card)return;
@@ -3031,12 +3095,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.79-beta';
+const APP_VERSION='v2.7.80-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.80-beta':{
+    title:'Home page: tab bar hidden, daily coach quote added, water polo stub',
+    items:[
+      'Bottom tab bar (Game / Plan / Team) now hides on landing pages (home, sport picker, grade picker) — the tabs only show once a team context is active. Landing pages reclaim their bottom space.',
+      'Daily coach quote on the home page — purple-tinted card above the tips carousel; 10 grassroots-friendly quotes rotate one per day (stable across refreshes within the same day).',
+      'Water polo (preview) added to the sports model: SPORTS / FORMATS / FORMATIONS / DIMS entries for junior 25 m and senior 30 m, 7-a-side umbrella formation. Pool visual still needs work — sport is selectable but the 3D field will fall back to a basic rectangle until the dedicated builder lands.'
+    ]
+  },
   'v2.7.79-beta':{
     title:'Visual bugs: landscape phone Plan clock + home tagline overlap + formation chip orphan',
     items:[
@@ -3981,6 +4053,12 @@ function renderHome(){
   if(tipsCard){
     if(isLanding)tipsCard.style.display='none';
     else renderTip();
+  }
+  // v2.7.80: coach quote rotates daily. Visible on the home page regardless of team count.
+  const quoteCard=document.getElementById('quoteCard');
+  if(quoteCard){
+    if(isLanding) quoteCard.style.display='none';
+    else { quoteCard.style.display=''; renderQuote(); }
   }
   // Hide the small header brand while the big landing hero is showing
   if(hdrBrand)hdrBrand.style.visibility=isLanding?'hidden':'';
