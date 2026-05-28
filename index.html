@@ -1482,6 +1482,21 @@ function loadTeams(){
       dirty=true;
     }
   });
+  // v2.7.76: one-shot rename for legacy "Untitled Team" rows so coaches with
+  // multiple drafts can distinguish them. Generates "Soccer 11v11", "Netball GO",
+  // etc., from each team's actual sport + format; appends #N when collisions occur.
+  const seen=new Set(arr.filter(t=>t.name && t.name!=='Untitled Team').map(t=>t.name));
+  arr.forEach(t=>{
+    if(t.name && t.name!=='Untitled Team') return;
+    const sport=(SPORTS && SPORTS[t.sport])?SPORTS[t.sport].label:(t.sport||'Team');
+    const fmt=(FORMATS && FORMATS[t.format])?FORMATS[t.format].label:'';
+    const base=fmt?`${sport} ${fmt}`:sport;
+    let candidate=base, n=2;
+    while(seen.has(candidate)){ candidate=`${base} #${n}`; n++; }
+    seen.add(candidate);
+    t.name=candidate;
+    dirty=true;
+  });
   if(dirty)saveTeamsRaw(arr);
   return arr;
 }
@@ -3002,12 +3017,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.75-beta';
+const APP_VERSION='v2.7.76-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.76-beta':{
+    title:'No more identical "Untitled Team" rows — auto-named from sport + format',
+    items:[
+      'Saving a team without a name now generates "Soccer 11v11", "Netball GO", "AFL U13", etc. — built from the team\'s sport + format label. If the name already exists, a counter is appended ("Soccer 7v7 #2"). Coaches with multiple drafts can now tell them apart at a glance on the home page.',
+      'One-shot migration: existing "Untitled Team" rows in localStorage are renamed on next load using the same rule, so your current four "Untitled Team" entries become distinguishable without manual edits.'
+    ]
+  },
   'v2.7.75-beta':{
     title:'SUB TIMER brand bar pinned at the very top of every page',
     items:[
@@ -4617,7 +4639,22 @@ function editTeamFromGame(){
 }
 function saveAndBack(){
   if(editingTeam){
-    editingTeam.name=document.getElementById('teamNameInput').value.trim()||'Untitled Team';
+    // v2.7.76: when the coach didn't name the team, generate a unique placeholder
+    // from sport + format (e.g. "Soccer 11v11", "Netball GO", "AFL U13") and append
+    // a counter (#2, #3...) if there's already a team with that name. Beats four
+    // identical "Untitled Team" rows on the home page.
+    const rawName=document.getElementById('teamNameInput').value.trim();
+    if(rawName){
+      editingTeam.name=rawName;
+    } else {
+      const sport=(SPORTS && SPORTS[editingTeam.sport])?SPORTS[editingTeam.sport].label:(editingTeam.sport||'Team');
+      const fmt=(FORMATS && FORMATS[editingTeam.format])?FORMATS[editingTeam.format].label:'';
+      const base=fmt?`${sport} ${fmt}`:sport;
+      const otherNames=new Set(teams.filter(t=>t.id!==editingTeam.id).map(t=>t.name));
+      let candidate=base, n=2;
+      while(otherNames.has(candidate)){ candidate=`${base} #${n}`; n++; }
+      editingTeam.name=candidate;
+    }
     editingTeam.players=editingTeam.players.map(p=>p.trim()).filter(p=>p.length>0);
     if(editingTeam.players.length===0){ editingTeam.players=['Player 1']; }
     const idx=teams.findIndex(t=>t.id===editingTeam.id);
