@@ -45,7 +45,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .ic-lg{width:1.4em;height:1.4em}
 .ic-xl{width:1.8em;height:1.8em}
 
-.hdr{background:linear-gradient(135deg,#16213e,#0f3460);padding:10px 16px;text-align:center;border-bottom:3px solid #e94560;position:sticky;top:0;z-index:10}
+.hdr{background:linear-gradient(135deg,#16213e,#0f3460);padding:10px 16px;text-align:center;border-bottom:3px solid #e94560;position:sticky;top:0;z-index:10;min-height:84px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
 .hdr h1{font-size:18px;font-weight:700;letter-spacing:1px}
 .hdr .sub{font-size:11px;color:#aaa;margin-top:1px}
 .hdr-row{display:flex;align-items:center;justify-content:space-between}
@@ -776,7 +776,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
 <!-- ===== S3: LINEUP (v2.7.43 — stripped to just the pitch + a slim header + a single Done CTA. GK pickers shrunk into the header; sub-plan preview moved to the Plan page. The whole point of this screen is now: see where each player stands.) ===== -->
 <div id="s3" class="scr" style="flex-direction:column;overflow:hidden">
-  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#16213e;border-bottom:1px solid rgba(91,192,222,.25);flex-shrink:0">
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#16213e;border-bottom:1px solid rgba(91,192,222,.25);flex-shrink:0;min-height:84px;box-sizing:border-box">
     <button class="back-btn" onclick="showScr('s4')" style="font-size:13px;display:flex;align-items:center;gap:4px"><i data-lucide="arrow-left" width="14" height="14" style="width:14px;height:14px;display:inline-flex"></i>Done</button>
     <span style="flex:1;text-align:center;font-size:15px;font-weight:800;letter-spacing:1.5px;color:#5bc0de">LINEUP</span>
     <div id="gkSection" style="display:flex;align-items:center;gap:6px">
@@ -2974,12 +2974,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.69-beta';
+const APP_VERSION='v2.7.70-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.70-beta':{
+    title:'Every page header now shares the same 84px eyebrow height',
+    items:[
+      'Shared .hdr class (Home, Sport picker, Grade picker, Team editor, Squad picker, Settings) bumped to min-height:84px with vertical centering. Lineup (s3) toolbar also bumped to 84px. Combined with the Game + Plan headers already at 84px (v2.7.69), every screen in the app now has the same eyebrow height — no jump between any pages.'
+    ]
+  },
   'v2.7.69-beta':{
     title:'Game + Plan headers share the same eyebrow height',
     items:[
