@@ -562,14 +562,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <button id="homeMenuBtn" onclick="toggleHomeMenu(event)" aria-label="Menu" title="Menu" style="position:absolute;top:50%;left:12px;transform:translateY(-50%);width:38px;height:38px;border-radius:10px;border:1px solid #444;background:none;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:5">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
-    <div id="homeMenu" style="display:none;position:absolute;top:60px;left:12px;background:#0d1828;border:1px solid #2a3550;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.65);padding:8px;min-width:220px;z-index:9500">
-      <button onclick="closeHomeMenu();openSettings()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
-      <div id="homeMenuAuthSlot" style="margin-top:2px"></div>
-    </div>
     <!-- Centred brand area: tagline (when no teams) OR daily quote (when returning). -->
     <div id="hdrBrand" style="display:none"></div>
     <div id="hdrTagline" class="sub">Smart Subs for grassroots coaches</div>
     <div id="hdrQuote" style="display:none;margin-top:6px;font-size:13px;color:#eee;font-weight:600;font-style:italic;line-height:1.35;text-align:center;padding:0 56px"></div>
+  </div>
+  <!-- v2.7.84: homeMenu moved OUT of the (hidden) .hdr so the drawer can render — display:none on a parent hides the whole subtree. -->
+  <div id="homeMenu" style="display:none;position:absolute;top:60px;left:12px;background:#0d1828;border:1px solid #2a3550;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.65);padding:8px;min-width:220px;z-index:9500">
+    <button onclick="closeHomeMenu();openSettings()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+    <div id="homeMenuAuthSlot" style="margin-top:2px"></div>
   </div>
   <div class="sec">
     <div id="resumeBanner" style="display:none;margin-bottom:12px;padding:12px;background:#1a2a14;border:1.5px solid #00d4aa;border-radius:10px">
@@ -3131,12 +3132,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.83-beta';
+const APP_VERSION='v2.7.84-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.84-beta':{
+    title:'Fix: home drawer wouldn\'t open + stray 1px artifact below the team list',
+    items:[
+      '#homeMenu lived inside #home > .hdr, which I\'d set to display:none in v2.7.82 — display:none on a parent hides the entire subtree, so the drawer wasn\'t openable from the brand-bar hamburger on the home screen. Moved the menu out as a sibling of .hdr.',
+      'Legacy body-level donate + feedback buttons (now in the drawer) were being re-shown as display:flex on render even though their content was empty, causing a 1px-tall flex strip artifact under the team list. Forced them to permanently display:none.'
+    ]
+  },
   'v2.7.83-beta':{
     title:'Hamburger opens a side drawer — Donate + Send feedback live inside',
     items:[
@@ -4106,10 +4114,12 @@ function renderHome(){
   if(heading)heading.style.display=isLanding?'none':'';
   if(newBtn)newBtn.style.display=isLanding?'none':'';
   if(histBtn)histBtn.style.display=isLanding?'none':'';
+  // v2.7.84: legacy body-level Donate / Send-feedback elements now live in the drawer.
+  // Keep them permanently hidden so they don't render as 1px-tall flex strips.
   const coffeeBtn=document.getElementById('coffeeBtn');
-  if(coffeeBtn)coffeeBtn.style.display=isLanding?'none':'flex';
+  if(coffeeBtn)coffeeBtn.style.display='none';
   const fbBtn=document.getElementById('feedbackBtn');
-  if(fbBtn)fbBtn.style.display=isLanding?'none':'flex';
+  if(fbBtn)fbBtn.style.display='none';
   // Tips carousel — show for returning users (anyone past the landing), not on first visit
   const tipsCard=document.getElementById('tipsCard');
   if(tipsCard){
