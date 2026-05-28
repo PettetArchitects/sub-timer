@@ -644,6 +644,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
       <button class="back-btn" onclick="deleteTeam()" id="delTeamBtn" style="color:#e94560">Delete</button>
     </div>
   </div>
+  <!-- v2.7.66: 3-way view switcher slot for the Team view. -->
+  <div id="vsSlot_team" style="display:flex;justify-content:center;padding:8px 0 2px;flex-shrink:0"></div>
   <div class="sec">
     <h2>Team Name</h2>
     <input class="input" id="teamNameInput" placeholder="e.g. Dragonflies U8">
@@ -803,7 +805,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     </button>
     <div id="gameMenu" style="display:none;position:absolute;top:50px;left:8px;background:#0d1828;border:1px solid #2a3550;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.65);padding:8px;min-width:220px;z-index:9500">
       <button onclick="closeGameMenu();editTeamFromGame()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit Team</button>
-      <button onclick="closeGameMenu();openSubSettings()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit;margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Sub Settings</button>
+      <button onclick="closeGameMenu();openSubOrder()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit;margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Sub Plan</button>
       <button onclick="closeGameMenu();openSettings()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit;margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
       <div style="height:1px;background:#243049;margin:4px 0"></div>
       <button onclick="closeGameMenu();abandonGame()" style="width:100%;padding:13px 14px;background:none;border:none;color:#ff7088;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>End game</button>
@@ -816,6 +818,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/><circle cx="7" cy="12" r="0.6" fill="currentColor"/><circle cx="7" cy="16" r="0.6" fill="currentColor"/></svg>
     </button>
   </div>
+
+  <!-- v2.7.66: 3-way view switcher slot (Game / Plan / Team). Same component on s4, subOrderOv and editTeam. -->
+  <div id="vsSlot_s4" style="display:flex;justify-content:center;padding:8px 0 2px;flex-shrink:0"></div>
 
   <!-- Clock + next-sub countdown side-by-side, each with its OWN label
        directly underneath (v2.7.3) so coaches can read "1ST HALF" under the
@@ -926,7 +931,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     </button>
     <div id="planMenu" style="display:none;position:absolute;top:50px;left:8px;background:#0d1828;border:1px solid #2a3550;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.65);padding:8px;min-width:220px;z-index:9500">
       <button onclick="closePlanMenu();editTeamFromGame&&editTeamFromGame()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>Edit Team</button>
-      <button onclick="closePlanMenu();openSubSettings&&openSubSettings()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit;margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Sub Settings</button>
       <button onclick="closePlanMenu();openSettings&&openSettings()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:15px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit;margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
       <!-- v2.7.59: Save / Lineup live INSIDE the menu in CUSTOM mode. Hidden in AUTO (nothing to save / no lineup to edit through the AUTO picker). -->
       <div id="planMenuCustomGroup" style="display:none">
@@ -946,6 +950,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
     </button>
   </div>
+  <!-- v2.7.66: 3-way view switcher (Game / Plan / Team) — segmented-control pill
+       just under the toolbar, same as the Apple Timer app's bottom tab bar but
+       positioned at the top. Single nav anchor for moving between the three
+       primary in-team views. -->
+  <div id="vsSlot_plan" style="display:flex;justify-content:center;padding:8px 0 2px;flex-shrink:0"></div>
   <!-- v2.7.56/64: Clock anchor — same padding (12px 0 4px) + no background, no
        border as the game-screen #clkArea so the clock sits in exactly the same
        visual position on both pages. -->
@@ -973,6 +982,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <div id="subOrderSuggestion" style="display:none"></div>
     <!-- v2.7.48: starting-XI + bench overview so the coach sees the whole roster status at a glance — not just the swap rows. -->
     <div id="planRosterOverview" style="margin-bottom:14px"></div>
+    <!-- v2.7.66: projected playing time per player across the full game. The
+         fairness check — Auto-fair strategies exist to balance minutes, this
+         shows whether they actually are. Sorted lowest first so the kids
+         getting under-played sit at the top. -->
+    <div id="planProjMins" style="margin-bottom:14px"></div>
     <div id="subOrderInfo" style="font-size:13px;color:#888;text-align:center;margin:0 0 14px"></div>
     <div id="subOrderList"></div>
     <button id="subOrderApplyBtn" onclick="subOrderApply()" style="display:none;width:100%;margin-top:14px;padding:14px;background:linear-gradient(180deg,#1ae0b8,#00c2a0);border:none;border-radius:8px;color:#06231d;font-size:15px;font-weight:800;letter-spacing:.5px;cursor:pointer;font-family:inherit">Use this strategy</button>
@@ -2877,7 +2891,51 @@ function showScr(id){
   document.querySelectorAll('.scr').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
+  // v2.7.66: repaint the 3-way view switcher whenever the active screen changes
+  // so the right tab stays highlighted across Game / Plan / Team transitions.
+  if(typeof renderViewSwitcher==='function') renderViewSwitcher();
   _li(); // materialise any <i data-lucide> placeholders revealed by the screen swap
+}
+
+// v2.7.66 — 3-way view switcher (Game / Plan / Team) modelled on the Apple Timer
+// app tab bar. Painted into #vsSlot_s4 / #vsSlot_plan / #vsSlot_team — one pill
+// per page, kept in sync. Tap any tab to jump to that view (with the appropriate
+// setup call — openSubOrder for Plan, editTeamFromGame for Team, renderG for Game).
+function renderViewSwitcher(){
+  const active=(()=>{
+    const ov=document.getElementById('subOrderOv');
+    if(ov&&ov.classList.contains('active')) return 'plan';
+    const et=document.getElementById('editTeam');
+    if(et&&et.classList.contains('active')) return 'team';
+    return 'game';
+  })();
+  const tabs=[
+    {k:'game', label:'Game', svg:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>'},
+    {k:'plan', label:'Plan', svg:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="14" y2="16"/></svg>'},
+    {k:'team', label:'Team', svg:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'}
+  ];
+  const html=`<div style="display:inline-flex;background:rgba(10,22,40,.85);border:1px solid #1e2a45;border-radius:24px;padding:3px;gap:2px;backdrop-filter:blur(8px)">
+    ${tabs.map(t=>{
+      const sel=(t.k===active);
+      return `<button onclick="switchToView('${t.k}')" aria-label="${t.label} view" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:${sel?'rgba(91,192,222,.18)':'transparent'};border:none;border-radius:20px;color:${sel?'#5bc0de':'#9fb3c8'};font-size:12.5px;font-weight:800;letter-spacing:.3px;cursor:pointer;font-family:inherit;transition:background .15s">${t.svg}<span>${t.label}</span></button>`;
+    }).join('')}
+  </div>`;
+  ['vsSlot_s4','vsSlot_plan','vsSlot_team'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=html;
+  });
+}
+
+function switchToView(v){
+  if(v==='game'){
+    if(G){ if(typeof renderG==='function') renderG(); showScr('s4'); }
+    else if(typeof home==='function') home();
+  } else if(v==='plan'){
+    if(G){ if(typeof openSubOrder==='function') openSubOrder(); }
+    else if(typeof home==='function') home();
+  } else if(v==='team'){
+    if(currentTeam){ if(typeof editTeamFromGame==='function') editTeamFromGame(); }
+    else if(typeof home==='function') home();
+  }
 }
 
 // ===== HOME =====
@@ -2925,12 +2983,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.65-beta';
+const APP_VERSION='v2.7.66-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.66-beta':{
+    title:'3-way view switcher + projected playing time + Sub Settings folded into Plan',
+    items:[
+      'New 3-way segmented switcher (Game / Plan / Team) modelled on the Apple Timer app tab bar — sits just under the toolbar on every team-context view. Single nav anchor for moving between the three main views; current view is highlighted, tap any tab to jump.',
+      'Projected playing time card on the Plan page — every player on the roster gets a row showing their projected minutes across the FULL game, with a horizontal bar visualising relative time. Sorted lowest first so under-played kids float to the top. Colours: orange = under 75% of average, cyan = over 125%, green = balanced.',
+      'Sub Settings modal removed — the Plan page already exposes every control it had (half length, sub-every, players-per-sub, strategy), so the modal was redundant. The hamburger entry on the game screen now opens the Plan page directly.'
+    ]
+  },
   'v2.7.65-beta':{
     title:'Plan page: sub controls grouped up top; formations run along the top of the field',
     items:[
@@ -7196,6 +7262,7 @@ function openSubOrder(){
   renderSubOrderControls();
   renderSubOrderSuggestion();
   renderPlanRosterOverview();
+  renderPlanProjectedMinutes();
   // v2.7.62: default the pitch to the landscape top-down ('top-h') view when the
   // Plan page opens — tactical-board feel for planning. Coach can still tap the
   // Behind/Side/Top buttons in the canvas overlay to change views; we only force
@@ -7238,6 +7305,7 @@ function soAdj(k,d){
   // the timeline + repaint the scrub bar/pitch/bench so the preview stays in sync.
   buildPlanTimeline();
   renderPlanRosterOverview();
+  renderPlanProjectedMinutes();
   renderSubOrder();
   if(typeof saveActiveGame==='function') saveActiveGame();
   if(typeof renderG==='function') renderG();
@@ -7573,6 +7641,7 @@ function subOrderPick(strat){
   buildPlanTimeline();
   renderSubOrderTabs();
   renderPlanRosterOverview();
+  renderPlanProjectedMinutes();
   renderSubOrder();
   const btn=document.getElementById('subOrderApplyBtn');
   if(btn) btn.style.display='none';     // never needed now
@@ -7700,6 +7769,70 @@ function getPlanScrubState(){
     off:ev.off||[], swapOn:ev.on||[],
     idx:N, total:futureEvents.length, isLive:false
   };
+}
+
+// v2.7.66 — Replay the timeline from kickoff state and accrue per-player minutes
+// across every event + period remainder. Returns {playerName: totalSeconds} —
+// the projected playing time for the FULL game given the current plan.
+function computeProjectedMinutes(){
+  if(!_planTimeline||!G) return {};
+  const periodCount=_planTimeline.periodCount;
+  const hmSec=(cfg.hm||0)*60;
+  let simOn=[..._planTimeline.initialOn];
+  let simBench=[..._planTimeline.initialBench];
+  const simPt=Object.assign({},G.pt);
+  const future=_planTimeline.events.filter(e=>!e.past);
+  const byPeriod=new Map();
+  future.forEach(ev=>{ if(!byPeriod.has(ev.period)) byPeriod.set(ev.period,[]); byPeriod.get(ev.period).push(ev); });
+  for(let p=G.half;p<=periodCount;p++){
+    let simSecs=(p===G.half)?G.secs:0;
+    const evs=byPeriod.get(p)||[];
+    evs.forEach(ev=>{
+      const dt=Math.max(0,ev.time-simSecs);
+      simOn.forEach(pl=>{ simPt[avail[pl]]=(simPt[avail[pl]]||0)+dt; });
+      simSecs=ev.time;
+      const off=ev.off||[], on=ev.on||[];
+      const cc=Math.min(off.length,on.length);
+      for(let i=0;i<cc;i++){ const idx=simOn.indexOf(off[i]); if(idx>=0) simOn[idx]=on[i]; }
+      simBench=simBench.filter(pl=>!on.includes(pl)).concat(off.slice(0,cc));
+    });
+    const remaining=Math.max(0,hmSec-simSecs);
+    simOn.forEach(pl=>{ simPt[avail[pl]]=(simPt[avail[pl]]||0)+remaining; });
+  }
+  return simPt;
+}
+
+// Render the projected-minutes card on the Plan page. Each row = name + projected
+// mins + a horizontal bar (% of max). Sorted ascending so the underplayed kids
+// sit at the top — the coach scans down and rebalances if needed.
+function renderPlanProjectedMinutes(){
+  const host=document.getElementById('planProjMins');
+  if(!host||!G||!avail) return;
+  const pt=computeProjectedMinutes();
+  const rows=avail.map(name=>({name,secs:pt[name]||0}));
+  if(!rows.length){ host.innerHTML=''; return; }
+  rows.sort((a,b)=>a.secs-b.secs);
+  const maxS=Math.max(1,...rows.map(r=>r.secs));
+  const avgS=rows.reduce((s,r)=>s+r.secs,0)/rows.length;
+  const items=rows.map(r=>{
+    const mins=Math.round(r.secs/60);
+    const pct=Math.round(100*r.secs/maxS);
+    // Below 75% of average = under-played (orange); within 25% of avg = balanced (green); above 125% = over (cyan).
+    const ratio=avgS>0?r.secs/avgS:1;
+    const col=ratio<0.75?'#f0a500':(ratio>1.25?'#5bc0de':'#00d4aa');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;border-top:1px solid #16213e;font-size:13px">
+      <span style="flex:0 0 100px;color:${col};font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fn(r.name)}</span>
+      <div style="flex:1;height:8px;background:#0a1628;border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${col};opacity:.8"></div></div>
+      <span style="flex:0 0 56px;text-align:right;color:${col};font-weight:800;font-variant-numeric:tabular-nums">${mins} min</span>
+    </div>`;
+  }).join('');
+  host.innerHTML=`<div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;gap:8px">
+      <div style="font-size:10px;letter-spacing:1.2px;color:#9fb3c8;font-weight:800;text-transform:uppercase">Projected playing time · full game</div>
+      <div style="font-size:11px;color:#666;font-weight:600">Avg ${Math.round(avgS/60)} min</div>
+    </div>
+    ${items}
+  </div>`;
 }
 
 function planScrubStep(d){
