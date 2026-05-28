@@ -2898,12 +2898,16 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.40-beta';
+const APP_VERSION='v2.7.41-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.41-beta':{
+    title:'Squad page: drop the duplicate ✓ ✓ on each player',
+    items:['.chip.sel::after already adds a " ✓" via CSS — my v2.7.36 cleanup added a second inline one and they were rendering as "Name ✓ ✓". Just the name now; the cross-out + dimming on un-selected chips still telegraphs "out".']
+  },
   'v2.7.40-beta':{
     title:'Plan page: sticky top toolbar',
     items:['Done + Lineup buttons moved off the bottom of the Plan overlay (where you had to scroll past the whole sub list to reach them) into a sticky top toolbar that stays visible while you scroll the sub timeline. Title shrunk into the toolbar to keep the chrome tight.']
@@ -4315,13 +4319,13 @@ function renderS1(){
     const c=document.createElement('div');
     const isOut=!sel.has(i);
     c.className='chip'+(isOut?'':' sel');
-    // v2.7.36: cleaner squad chips — just the name + tick / cross. Position
-    // tags belong in the team editor; on the day, who's here is the only thing
-    // that matters. Lots fewer pixels per chip → more chips per page.
+    // v2.7.41: just the name. .chip.sel::after already adds " ✓" via CSS;
+    // adding another inline check was rendering as "Name ✓ ✓". The line-
+    // through + opacity on .chip:not(.sel) already telegraphs "out".
     c.style.cssText=isOut
-      ?'opacity:0.45;text-decoration:line-through;padding:14px 10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px'
-      :'padding:14px 10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px';
-    c.innerHTML=`<span>${fn(name)}</span><span style="color:${isOut?'#666':'#00d4aa'};font-size:13px">${isOut?'×':'✓'}</span>`;
+      ?'opacity:0.45;text-decoration:line-through;padding:14px 10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;min-height:50px'
+      :'padding:14px 10px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;min-height:50px';
+    c.textContent=fn(name);
     c.onclick=()=>{sel.has(i)?sel.delete(i):sel.add(i);renderS1();};
     g.appendChild(c);
   });
