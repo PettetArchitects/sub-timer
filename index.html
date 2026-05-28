@@ -798,8 +798,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
 <!-- ===== S4: GAME ===== -->
 <div id="s4" class="scr" style="height:100dvh;overflow:hidden;flex-direction:column">
-  <!-- Top bar: score centred. v2.7.9 — hamburger menu replaces the ✕ end-game button + holds Edit Team. -->
-  <div style="display:flex;flex-direction:column;align-items:center;padding:10px 12px 6px;background:#16213e;border-bottom:1px solid #333;flex-shrink:0;position:relative">
+  <!-- Top bar: score centred. v2.7.9 — hamburger menu replaces the ✕ end-game button + holds Edit Team.
+       v2.7.69: explicit min-height:84px so the Plan + Game page headers share the same eyebrow height (the Plan header has the same min-height — no jump when switching). -->
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 12px 6px;background:#16213e;border-bottom:1px solid #333;flex-shrink:0;position:relative;min-height:84px">
     <button id="gameMenuBtn" onclick="toggleGameMenu(event)" aria-label="Menu" title="Menu" style="position:absolute;top:6px;left:8px;width:38px;height:38px;border-radius:10px;border:1px solid #444;background:none;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
@@ -2973,12 +2974,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.68-beta';
+const APP_VERSION='v2.7.69-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.69-beta':{
+    title:'Game + Plan headers share the same eyebrow height',
+    items:[
+      'Game-screen header gets explicit min-height:84px — same value already set on the Plan header — so the page eyebrow (top margin / header band) reads identical across the two views. No height jump when switching between Game and Plan via the 3-way switcher.'
+    ]
+  },
   'v2.7.68-beta':{
     title:'Plan page tightened — denser layout, less chrome',
     items:[
