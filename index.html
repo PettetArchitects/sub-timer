@@ -2901,12 +2901,21 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.48-beta';
+const APP_VERSION='v2.7.49-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.49-beta':{
+    title:'Plan page: lifted the 3D pitch into the On-field card',
+    items:[
+      'The "On field" card on the Plan page now hosts the same 3D pitch viewer used on the game screen — same surface, same player tokens, same orbit controls. The afl3d renderer hops containers on demand: opens into #planFieldWrap when the Plan page is shown, hops back to the game pitch when you tap Done.',
+      'Tap-to-swap and long-press-for-injury both work on the Plan pitch — same gestures as on the game screen.',
+      'Inline formation picker (chip row) sits in the card header. Tap a formation and the pitch repaints with the new layout. Hidden for sports with one fixed formation.',
+      'On bench card stays as a flat amber chip row showing everyone benched at the start of the period.'
+    ]
+  },
   'v2.7.48-beta':{
     title:'Toggle commits on tap + full roster overview on the Plan page',
     items:[
@@ -7153,26 +7162,87 @@ function renderPlanProfiles(){
   _li();
 }
 
-// v2.7.48 — full-roster overview at the top of the Plan page. Shows the
-// starting XI (currently on the field) + everyone on the bench at the start
-// of the current period. Helps the coach spot anyone who's been forgotten,
-// and gives the full picture of who's available beyond just swap rows.
+// v2.7.49 — Plan-page roster overview. The ON FIELD card now hosts the same
+// 3D pitch viewer we use on the game screen (afl3d). afl3d's renderer hops
+// containers on demand — when the Plan page opens, afl3d.update points it at
+// #planFieldWrap; when the coach taps Done and returns to s4, renderG calls
+// afl3d.update(pitchMid, ...) which moves it back. ON BENCH stays as a
+// flat chip row. Formation chip picker sits in the card header.
 function renderPlanRosterOverview(){
   const host=document.getElementById('planRosterOverview');
   if(!host||!G||!avail) return;
   const onIdx=G.on||[], benchIdx=G.bench||[];
-  const onChips=onIdx.map(i=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.35);border-radius:14px;font-size:12px;font-weight:700;color:#00d4aa">${fn(avail[i])}${(G.gk===i)?' <span style="font-size:9px;color:#e94560;letter-spacing:.5px;font-weight:800">GK</span>':''}</span>`).join('');
-  const benchChips=benchIdx.map(i=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;background:rgba(240,165,0,.10);border:1px solid rgba(240,165,0,.35);border-radius:14px;font-size:12px;font-weight:700;color:#f0a500">${fn(avail[i])}</span>`).join('');
-  host.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
-    <div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;letter-spacing:1.2px;color:#00d4aa;font-weight:800;margin-bottom:6px;text-transform:uppercase">On field · ${onIdx.length}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">${onChips||'<span style="font-size:12px;color:#666">—</span>'}</div>
+  const benchChipsHtml=benchIdx.map(i=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;background:rgba(240,165,0,.10);border:1px solid rgba(240,165,0,.35);border-radius:14px;font-size:12px;font-weight:700;color:#f0a500">${fn(avail[i])}</span>`).join('');
+  host.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px">
+    <div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;gap:8px">
+        <div style="font-size:10px;letter-spacing:1.2px;color:#00d4aa;font-weight:800;text-transform:uppercase">On field · ${onIdx.length}</div>
+        <div id="planFormationChips" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></div>
+      </div>
+      <div id="planFieldWrap" style="height:300px;position:relative;background:#06101c;border-top:1px solid #1e2a45"></div>
     </div>
     <div style="background:#0a1628;border:1px solid #1e2a45;border-radius:8px;padding:10px 12px">
-      <div style="font-size:10px;letter-spacing:1.2px;color:#f0a500;font-weight:800;margin-bottom:6px;text-transform:uppercase">On bench · ${benchIdx.length}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">${benchChips||'<span style="font-size:12px;color:#666">no subs available</span>'}</div>
+      <div style="font-size:10px;letter-spacing:1.2px;color:#f0a500;font-weight:800;margin-bottom:8px;text-transform:uppercase">On bench · ${benchIdx.length}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${benchChipsHtml||'<span style="font-size:12px;color:#666">no subs available</span>'}</div>
     </div>
   </div>`;
+  renderPlanFormationChips();
+  renderPlanField3D();
+}
+function renderPlanFormationChips(){
+  const host=document.getElementById('planFormationChips');
+  if(!host) return;
+  const formations=FORMATIONS[curFmt]||{};
+  const keys=Object.keys(formations);
+  if(keys.length<=1){ host.innerHTML=''; return; }
+  host.innerHTML=keys.map(k=>{
+    const sel=(curFormation===k);
+    return `<button onclick="setPlanFormation('${k}')" style="padding:4px 9px;background:${sel?'rgba(0,212,170,.16)':'transparent'};border:1.5px solid ${sel?'#00d4aa':'#2a3550'};color:${sel?'#00d4aa':'#9fb3c8'};border-radius:14px;font-size:11px;font-weight:800;letter-spacing:.3px;cursor:pointer;font-family:inherit">${k}</button>`;
+  }).join('');
+}
+function renderPlanField3D(){
+  const wrap=document.getElementById('planFieldWrap');
+  if(!wrap||!G) return;
+  const _3dSport=getSport(currentTeam).key;
+  const _use3d=(typeof afl3d!=='undefined') && afl3d.ready && afl3d.ready() && ['afl','soccer','netball','basketball'].includes(_3dSport);
+  if(!_use3d){
+    wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;font-size:12px">3D pitch unavailable for this sport</div>';
+    return;
+  }
+  const positions=getPositions();
+  // afl3d.update will tear down + re-init when the container changes. When the
+  // coach taps Done and renderG runs on s4, afl3d.update(pitchMid, ...) moves
+  // the renderer back automatically.
+  afl3d.update(wrap, (add)=>{
+    G.on.forEach((pIdx,i)=>{
+      const pos=positions[i];
+      if(!pos) return;
+      const isGk=(G.gk===pIdx);
+      const mins=Math.floor((G.pt[avail[pIdx]]||0)/60);
+      const el=document.createElement('div');
+      el.className='fc '+(isGk?'fc-gk':'fc-on');
+      el.style.cssText='position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center;cursor:pointer';
+      const jersey=currentTeam?getPlayerNumber(currentTeam,avail[pIdx]):'';
+      const isNb=_3dSport==='netball';
+      const shirtInner=isNb?shirtSvg('',pos.label):shirtSvg(jersey);
+      const posChip=isNb?'':`<span class="fc-pos">${pos.label}</span>`;
+      el.innerHTML=`<div class="fc-shirt">${shirtInner}</div><div class="fc-label">${posChip}<span class="fc-name">${fn(avail[pIdx])}</span><span class="fc-mins">${mins}′</span></div>`;
+      // Tap on the pitch in Plan view = same swap gesture as the game screen.
+      el.onpointerdown=(e)=>fieldPillPointerDown(e,pIdx,isGk);
+      el.onpointermove=fieldPillPointerMove;
+      el.onpointerup=(e)=>fieldPillPointerUp(e,pIdx,isGk);
+      el.onpointercancel=()=>{ if(typeof _lpTimer!=='undefined' && _lpTimer){clearTimeout(_lpTimer);} window._lpFired=false; };
+      el.onclick=(e)=>fieldPillClick(e,pIdx,isGk);
+      add(el, pos.x, pos.y, avail[pIdx]);
+    });
+  }, _3dSport);
+}
+function setPlanFormation(name){
+  if(!FORMATIONS[curFmt]||!FORMATIONS[curFmt][name]) return;
+  curFormation=name;
+  if(typeof saveActiveGame==='function') saveActiveGame();
+  renderPlanRosterOverview();
+  if(typeof renderG==='function') renderG();
 }
 
 function openLineupFromPlan(){
