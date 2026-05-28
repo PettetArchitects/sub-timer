@@ -688,6 +688,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <div id="countInfo" style="text-align:center;margin-top:12px;font-size:13px;color:#888">0 selected</div>
     <!-- Equal-game-time helper: suggests a sub interval from who's actually here today. -->
     <div id="equalTimeHint" style="display:none"></div>
+    <!-- v2.7.47: choose AUTO or a saved Custom-plan profile right here on the squad page. Populated by renderS1 from currentTeam.plans. Empty state nudges the coach into the Plan Ahead builder. -->
+    <div id="squadPlanPicker" style="margin-top:14px"></div>
     <button class="btn btn-g" id="nextBtn1" disabled onclick="startFromSquad()" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">Next <i data-lucide="arrow-right" width="18" height="18" style="width:18px;height:18px;display:inline-flex"></i></button>
     <!-- v2.7.45: "Game options for today" + footer hint removed. The squad page is for marking who's here, not a fork to settings. Sub frequency / group size / strategy all live on the Plan page (next screen); team-level prefs live in Edit Team. -->
   </div>
@@ -2897,12 +2899,19 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.46-beta';
+const APP_VERSION='v2.7.47-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.47-beta':{
+    title:'Squad page: pick AUTO or a saved plan up-front',
+    items:[
+      'New "Use a plan" row on the squad page (Play Now flow). If the team has saved profiles, you pick AUTO or any of them as a chip — selection is applied when you tap Next.',
+      'No saved plans yet? The row becomes a "Starting in AUTO — Want a custom plan? Build →" prompt that routes you into the Plan Ahead builder. Plan Ahead is now clearly the place to BUILD; Play Now is the place to PICK.'
+    ]
+  },
   'v2.7.46-beta':{
     title:'Saved plan profiles — pick CUSTOM, load a saved build',
     items:[
@@ -4364,6 +4373,47 @@ function renderS1(){
   document.getElementById('countInfo').textContent=n+' playing'+(out?` · ${out} out`:'')+(n>=minP?` — ${n-minP} subs`:`  (need ${minP}+)`);
   document.getElementById('nextBtn1').disabled=n<minP;
   renderEqualTimeHint(n, minP);
+  renderSquadPlanPicker();
+}
+
+// v2.7.47 — squad-page plan picker. Lets the coach pick AUTO (default) or a
+// saved Custom profile (built earlier via Plan Ahead) right here, before
+// kicking off. _squadPickedPlanId tracks the selection; startFromSquad
+// applies the snapshot once the coach taps Next.
+let _squadPickedPlanId=null;
+function renderSquadPlanPicker(){
+  const host=document.getElementById('squadPlanPicker');
+  if(!host||!currentTeam) return;
+  const plans=(currentTeam.plans||[]);
+  if(!plans.length){
+    // Empty state — nudge into the builder.
+    host.innerHTML=`<div style="background:rgba(167,139,250,.06);border:1px dashed rgba(167,139,250,.4);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:12px;color:#aaa;line-height:1.4">
+      <i data-lucide="clipboard" width="16" height="16" style="width:16px;height:16px;color:#a78bfa;flex-shrink:0;display:inline-flex"></i>
+      <span style="flex:1">Starting in <strong style="color:#00d4aa">AUTO</strong>. Want a custom plan?</span>
+      <button onclick="planAheadFromSquad()" style="background:rgba(167,139,250,.18);border:1px solid #a78bfa;color:#a78bfa;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit">Build →</button>
+    </div>`;
+    _li();
+    return;
+  }
+  // Have profiles — show AUTO + each as a chip.
+  const opts=[{id:null,label:'Auto',color:'#00d4aa',icon:'timer'}].concat(plans.map(p=>({id:p.id,label:p.name,color:'#a78bfa',icon:'clipboard'})));
+  const chips=opts.map(o=>{
+    const sel=(_squadPickedPlanId===o.id);
+    return `<button onclick="pickSquadPlan(${o.id===null?'null':o.id})" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:${sel?o.color+'1f':'transparent'};border:1.5px solid ${sel?o.color:'#2a3550'};color:${sel?o.color:'#9fb3c8'};border-radius:16px;font-size:12px;font-weight:800;letter-spacing:.3px;cursor:pointer;font-family:inherit">${ic(o.icon,13,sel?o.color:'#9fb3c8')}${o.label}</button>`;
+  }).join('');
+  host.innerHTML=`<div style="font-size:10px;letter-spacing:1.2px;color:#888;font-weight:800;text-transform:uppercase;margin-bottom:6px">Use a plan</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>`;
+  _li();
+}
+function pickSquadPlan(id){
+  _squadPickedPlanId=id;
+  renderSquadPlanPicker();
+}
+function planAheadFromSquad(){
+  // Same path as the team-action menu's "Plan ahead" — sets the one-shot flag
+  // so startFromSquad flips into CUSTOM with the Lineup button visible.
+  _planAheadCustom=true;
+  startFromSquad();
 }
 // Equal-game-time helper (inspired by the grassroots "divide game time by
 // players" rule of thumb): from who's actually here today, suggest the sub
@@ -4410,7 +4460,15 @@ function startFromSquad(){
   // flip the cfg strategy to planned so the Plan overlay opens with the Lineup
   // button visible. The flag is single-shot.
   if(_planAheadCustom){ cfg.subStrategy='planned'; _planAheadCustom=false; }
+  // v2.7.47: if the coach picked a saved plan from the squad-page picker,
+  // apply that snapshot after quickStart sets up G. Cleared after use.
+  const _pickedPlanId=_squadPickedPlanId;
+  _squadPickedPlanId=null;
   quickStart();
+  if(_pickedPlanId!=null && currentTeam && currentTeam.plans){
+    const p=currentTeam.plans.find(x=>x.id===_pickedPlanId);
+    if(p && typeof applyPlanProfile==='function') applyPlanProfile(p);
+  }
   if(typeof openSubOrder==='function') setTimeout(openSubOrder, 0);
 }
 function goSettings(){
