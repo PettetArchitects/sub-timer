@@ -2937,12 +2937,18 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.59-beta';
+const APP_VERSION='v2.7.60-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.60-beta':{
+    title:'Plan page: always show both clocks — same shape as the game screen',
+    items:[
+      'AUTO no longer drops to a single clock — the Plan-page header always shows both DSEG clocks (game time + SUB EVERY) with their inline min-half / min-subs steppers, regardless of AUTO or CUSTOM. Direct copy of the game-screen header shape so the clock anchor reads identical across both pages.'
+    ]
+  },
   'v2.7.59-beta':{
     title:'Plan-page clock matches the game clock; Back-to-game mirrors the Plan button position',
     items:[
@@ -7718,40 +7724,33 @@ function renderPlanClockAnchor(){
   const st=getPlanScrubState();
   if(!st){ host.innerHTML=''; return; }
   const tColor=st.isLive?'#00d4aa':'#5bc0de';
-  const isCustom=(_subOrderStrat==='planned');
-  if(isCustom){
-    // v2.7.59: dual DSEG clocks now use the SAME .tmr-c sizing as the game-screen
-    // clock (min(13vw, 56px)) — anchor consistency across the two pages.
-    const hmV=cfg.hm||0, sfV=cfg.sf||0;
-    host.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:center;gap:min(5vw,32px);flex-wrap:nowrap">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:${tColor}">${fmtTime(st.time)}</div>
-        <div style="font-size:13px;color:${tColor};font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap">${periodLbl(st.period)}</div>
-        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.35);border-radius:14px;padding:2px 6px;font-size:11px;color:#ff7088;font-weight:700;letter-spacing:.3px">
-          <button onclick="planClkAdj('hm',-1)" aria-label="Shorter half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
-          <span style="min-width:22px;text-align:center;font-variant-numeric:tabular-nums">${hmV}</span>
-          <span style="opacity:.7">min half</span>
-          <button onclick="planClkAdj('hm',1)" aria-label="Longer half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
-        </div>
+  // v2.7.60: SAME dual-clock element in both AUTO and CUSTOM — direct copy of the
+  // game-screen header (left clock = game time / period / min-half stepper; right
+  // clock = SUB EVERY countdown / min-subs stepper). The previous AUTO variant
+  // (single clock) made the anchor read differently across the two modes; one
+  // anchor, one shape, regardless of strategy.
+  const hmV=cfg.hm||0, sfV=cfg.sf||0;
+  host.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:center;gap:min(5vw,32px);flex-wrap:nowrap">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:${tColor}">${fmtTime(st.time)}</div>
+      <div style="font-size:13px;color:${tColor};font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap">${periodLbl(st.period)}</div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.35);border-radius:14px;padding:2px 6px;font-size:11px;color:#ff7088;font-weight:700;letter-spacing:.3px">
+        <button onclick="planClkAdj('hm',-1)" aria-label="Shorter half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
+        <span style="min-width:22px;text-align:center;font-variant-numeric:tabular-nums">${hmV}</span>
+        <span style="opacity:.7">min half</span>
+        <button onclick="planClkAdj('hm',1)" aria-label="Longer half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div class="tmr-c" style="margin:0;line-height:1;color:#00d4aa">${fmtTime((cfg.sf||0)*60)}</div>
-        <div style="font-size:13px;color:#00d4aa;font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap">SUB EVERY</div>
-        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:14px;padding:2px 6px;font-size:11px;color:#00d4aa;font-weight:700;letter-spacing:.3px">
-          <button onclick="planClkAdj('sf',-1)" aria-label="Sub more often" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
-          <span style="min-width:22px;text-align:center;font-variant-numeric:tabular-nums">${sfV}</span>
-          <span style="opacity:.7">min subs</span>
-          <button onclick="planClkAdj('sf',1)" aria-label="Sub less often" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
-        </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div class="tmr-c" style="margin:0;line-height:1;color:#00d4aa">${fmtTime((cfg.sf||0)*60)}</div>
+      <div style="font-size:13px;color:#00d4aa;font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap">SUB EVERY</div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:14px;padding:2px 6px;font-size:11px;color:#00d4aa;font-weight:700;letter-spacing:.3px">
+        <button onclick="planClkAdj('sf',-1)" aria-label="Sub more often" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
+        <span style="min-width:22px;text-align:center;font-variant-numeric:tabular-nums">${sfV}</span>
+        <span style="opacity:.7">min subs</span>
+        <button onclick="planClkAdj('sf',1)" aria-label="Sub less often" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
       </div>
-    </div>`;
-    return;
-  }
-  // AUTO mode — single .tmr-c clock + period chip below (same shape as the
-  // game-screen header, just with one clock instead of two).
-  host.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-    <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:${tColor}">${fmtTime(st.time)}</div>
-    <div style="font-size:13px;color:${tColor};font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap">${periodLbl(st.period)}</div>
+    </div>
   </div>`;
 }
 function renderPlanControlBand(){
