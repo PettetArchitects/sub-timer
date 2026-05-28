@@ -50,8 +50,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 #home > .hdr{display:none}
 /* The per-screen hamburger buttons (homeMenuBtn, gameMenuBtn, planMenuBtn) are superseded by the single brand-bar #globalMenuBtn. Hide them but keep their dropdown menus in the DOM so the global hamburger can still trigger them. */
 #homeMenuBtn,#gameMenuBtn,#planMenuBtn{display:none!important}
-/* Per-screen dropdowns now anchor below the brand bar instead of below the (hidden) per-screen button. */
-#homeMenu,#gameMenu,#planMenu{top:calc(48px + env(safe-area-inset-top))!important;left:8px!important}
+/* v2.7.83: hamburger opens a SIDE DRAWER (not a dropdown). Slides in from the left, full-height, with scrim. Donate sits at the bottom of every drawer. */
+#homeMenu,#gameMenu,#planMenu{position:fixed!important;top:0!important;left:0!important;right:auto!important;bottom:auto!important;width:280px!important;max-width:80vw!important;height:100dvh!important;margin:0!important;border-radius:0!important;border:none!important;border-right:1px solid #2a3550!important;box-shadow:4px 0 24px rgba(0,0,0,.65)!important;background:#0d1828!important;transform:translateX(-100%);transition:transform .25s ease;z-index:9500!important;padding:calc(48px + env(safe-area-inset-top) + 12px) 10px calc(16px + env(safe-area-inset-bottom))!important;display:flex!important;flex-direction:column;gap:2px;overflow-y:auto;min-width:0!important}
+#homeMenu.drawer-open,#gameMenu.drawer-open,#planMenu.drawer-open{transform:translateX(0)}
+#appDrawerScrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9400;opacity:0;pointer-events:none;transition:opacity .25s ease}
+#appDrawerScrim.on{opacity:1;pointer-events:auto}
+.drawer-donate{margin-top:auto!important;border-top:1px solid #1e2a45;padding-top:10px!important}
 /* v2.7.82: persistent app header — hamburger LEFT, logo CENTRE, version RIGHT. Single bar across every page. */
 #appBrandBar{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:6px;height:44px;padding:env(safe-area-inset-top) 8px 0;background:#0d1828;border-bottom:1px solid #243049;z-index:9001;backdrop-filter:blur(8px)}
 #appBrandBar .ab-center{flex:1;display:inline-flex;justify-content:center;align-items:center;gap:8px;min-width:0}
@@ -607,7 +611,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
     <button id="historyBtn" onclick="showHistory()" style="display:none"></button>
     <!-- v2.7.81: inline full-width donate replaced by a floating bottom-right heart button (#coffeeFab below). Element kept hidden so any code path still referencing it doesn't error. -->
     <a id="coffeeBtn" href="https://buymeacoffee.com/spettet" target="_blank" rel="noopener" style="display:none"></a>
-    <button id="feedbackBtn" onclick="openFeedback()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:none;border:1px dashed #444;border-radius:10px;color:#888;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;font-family:inherit;letter-spacing:.3px"><i data-lucide="message-square" width="14" height="14" style="width:14px;height:14px;display:inline-flex"></i><span>Send feedback or feature ideas</span></button>
+    <!-- v2.7.83: feedback link moved into the hamburger drawer. Element kept hidden so legacy refs don't break. -->
+    <button id="feedbackBtn" onclick="openFeedback()" style="display:none"></button>
     <div style="text-align:center;font-size:10px;color:#555;margin-top:14px;letter-spacing:.5px;line-height:1.4">This is a beta — please tell me what's broken or missing.</div>
   </div>
 </div>
@@ -1203,8 +1208,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <span class="ab-ver" id="abVer"></span>
 </div>
 <div id="bottomTabBar"></div>
-<!-- v2.7.81: floating donate button — bottom-right of home only. -->
-<a id="coffeeFab" href="https://buymeacoffee.com/spettet" target="_blank" rel="noopener" aria-label="Donate to keep this app going" title="Donate to keep this app going" style="position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:calc(16px + env(safe-area-inset-right));width:52px;height:52px;border-radius:50%;background:rgba(255,196,40,.16);border:1.5px solid #ffc428;color:#ffc428;display:none;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 6px 16px rgba(0,0,0,.5);z-index:8900;backdrop-filter:blur(8px)"><i data-lucide="heart" width="22" height="22" style="width:22px;height:22px;display:inline-flex"></i></a>
+<!-- v2.7.83: drawer scrim — darkens the page behind the side drawer; tap to close. -->
+<div id="appDrawerScrim" onclick="closeAnyDrawer()"></div>
+<!-- v2.7.81→.83: donate moved INSIDE the hamburger drawer (.drawer-donate). FAB kept hidden in case any code path still references it. -->
+<a id="coffeeFab" href="https://buymeacoffee.com/spettet" target="_blank" rel="noopener" style="display:none"></a>
 
 
 <script>
@@ -3124,12 +3131,20 @@ function dismissTip(){
 }
 
 // ===== FEEDBACK =====
-const APP_VERSION='v2.7.82-beta';
+const APP_VERSION='v2.7.83-beta';
 // === Changelog data (mirrored in CHANGELOG.md) ===
 // The "What's New" modal pulls from this dict when APP_VERSION advances.
 // Only the latest version's entry is required for the modal; older entries
 // kept here for the "view past changes" link in feedback (future).
 const CHANGELOG_DATA={
+  'v2.7.83-beta':{
+    title:'Hamburger opens a side drawer — Donate + Send feedback live inside',
+    items:[
+      'Hamburger menu is now a proper side drawer — slides in from the left, full-height, with a darkened scrim behind. Tap the scrim or any item to close.',
+      'Donate moved INTO every drawer (amber pill at the bottom), and Send feedback joined it. Removed the floating heart FAB and the inline "Send feedback or feature ideas" button on the home page — both live in the drawer now.',
+      'All three per-screen menus (home / game / plan) share the same drawer shape — Settings + screen-specific items at the top, divider, Send feedback + Donate pinned to the bottom.'
+    ]
+  },
   'v2.7.82-beta':{
     title:'One header: hamburger LEFT · logo CENTRE · version RIGHT',
     items:[
@@ -7459,16 +7474,13 @@ document.addEventListener('click',(e)=>{
 // v2.7.9 hamburger menu (Edit Team / Sub Settings / Settings / End game).
 // Toggled by the top-left button on the game screen. Tap outside closes it
 // (handled in the document click above).
+// v2.7.83 — game menu uses the drawer pattern (was a dropdown popup).
 function toggleGameMenu(e){
   if(e) e.stopPropagation();
-  const gm=document.getElementById('gameMenu');
-  if(!gm) return;
-  gm.style.display=gm.style.display==='block'?'none':'block';
+  const gm=document.getElementById('gameMenu'); if(!gm) return;
+  if(gm.classList.contains('drawer-open')) closeAnyDrawer(); else openDrawer('gameMenu');
 }
-function closeGameMenu(){
-  const gm=document.getElementById('gameMenu');
-  if(gm) gm.style.display='none';
-}
+function closeGameMenu(){ closeAnyDrawer(); }
 
 // v2.7.15 + v2.7.16 — Sub Settings modal (mid-match tweaks).
 function openSubSettings(){
@@ -8241,27 +8253,19 @@ function renderPlanControlBand(){
 // anchor sits in the same spot across both pages (top-left). The menu options are
 // the same as gameMenu (Edit Team / Sub Settings / Settings / End game) plus a
 // "Back to game" item that maps to closeSubOrder().
+// v2.7.83 — drawer-based toggles. Each toggle opens its menu as a side drawer.
 function togglePlanMenu(ev){
   if(ev) ev.stopPropagation();
-  const m=document.getElementById('planMenu');
-  if(!m) return;
-  m.style.display=(m.style.display==='block')?'none':'block';
+  const m=document.getElementById('planMenu'); if(!m) return;
+  if(m.classList.contains('drawer-open')) closeAnyDrawer(); else openDrawer('planMenu');
 }
-function closePlanMenu(){
-  const m=document.getElementById('planMenu');
-  if(m) m.style.display='none';
-}
-// v2.7.81 — home-screen hamburger (Settings + Sign in). Mirrors the game/plan menus.
+function closePlanMenu(){ closeAnyDrawer(); }
 function toggleHomeMenu(ev){
   if(ev) ev.stopPropagation();
-  const m=document.getElementById('homeMenu');
-  if(!m) return;
-  m.style.display=(m.style.display==='block')?'none':'block';
+  const m=document.getElementById('homeMenu'); if(!m) return;
+  if(m.classList.contains('drawer-open')) closeAnyDrawer(); else openDrawer('homeMenu');
 }
-function closeHomeMenu(){
-  const m=document.getElementById('homeMenu');
-  if(m) m.style.display='none';
-}
+function closeHomeMenu(){ closeAnyDrawer(); }
 // v2.7.82 — single brand-bar hamburger routes to the right per-screen menu.
 function toggleGlobalMenu(ev){
   if(ev) ev.stopPropagation();
@@ -8271,7 +8275,31 @@ function toggleGlobalMenu(ev){
   if(plan&&plan.classList.contains('active')){ togglePlanMenu(ev); return; }
   const game=document.getElementById('s4');
   if(game&&game.classList.contains('active')){ toggleGameMenu(ev); return; }
-  // No menu wired for the other screens (sport picker, grade picker, team editor, lineup) — silent no-op.
+  // Fallback: open the home menu (Settings + Sign in) from any other screen.
+  toggleHomeMenu(ev);
+}
+
+// v2.7.83 — side-drawer behaviour: any open menu gets .drawer-open and the scrim turns on.
+function openDrawer(menuId){
+  document.querySelectorAll('#homeMenu, #gameMenu, #planMenu').forEach(m=>m.classList.remove('drawer-open'));
+  const m=document.getElementById(menuId); if(!m) return;
+  // Inject the universal footer (Donate + Send feedback) into this menu if it's not already there.
+  if(!m.querySelector('.drawer-donate')){
+    const foot=document.createElement('div');
+    foot.className='drawer-donate';
+    foot.style.cssText='margin-top:auto;border-top:1px solid #1e2a45;padding-top:8px;display:flex;flex-direction:column;gap:2px';
+    foot.innerHTML=`
+      <button onclick="closeAnyDrawer();openFeedback&&openFeedback()" style="width:100%;padding:13px 14px;background:none;border:none;color:#9fb3c8;font-size:14px;font-weight:700;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Send feedback</button>
+      <a href="https://buymeacoffee.com/spettet" target="_blank" rel="noopener" onclick="closeAnyDrawer()" style="width:100%;padding:13px 14px;background:rgba(255,196,40,.08);border:1px solid rgba(255,196,40,.4);color:#ffc428;font-size:14px;font-weight:800;text-align:left;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:12px;font-family:inherit;text-decoration:none;letter-spacing:.3px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg>Donate</a>
+    `;
+    m.appendChild(foot);
+  }
+  m.classList.add('drawer-open');
+  const sc=document.getElementById('appDrawerScrim'); if(sc) sc.classList.add('on');
+}
+function closeAnyDrawer(){
+  document.querySelectorAll('#homeMenu, #gameMenu, #planMenu').forEach(m=>m.classList.remove('drawer-open'));
+  const sc=document.getElementById('appDrawerScrim'); if(sc) sc.classList.remove('on');
 }
 
 // v2.7.55 — Plan-page version of clkAdj for the dual-clock steppers. Reuses
