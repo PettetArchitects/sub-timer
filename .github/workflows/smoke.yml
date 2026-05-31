@@ -1,9 +1,9 @@
 name: smoke
 
-# Routine app check: runs the headless smoke harness on every PR and on pushes
+# Routine app checks: runs the headless test suites on every PR and on pushes
 # to non-main branches. Fails the run (and blocks merge, if required) on any
-# failed check or unexpected console/page error. Screenshots are uploaded as an
-# artifact for triage.
+# failed check or unexpected console/page error. Screenshots from every suite
+# are uploaded as an artifact for triage.
 on:
   pull_request:
   push:
@@ -13,7 +13,7 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -30,8 +30,14 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Smoke test
+      - name: Smoke test (core journeys)
         run: npm run smoke
+
+      - name: Sports matrix (all formats)
+        run: npm run sports
+
+      - name: Edge cases (save/resume, subs, settings, boundaries)
+        run: npm run edge
 
       - name: Upload screenshots
         if: always()
