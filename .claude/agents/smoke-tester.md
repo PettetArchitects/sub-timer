@@ -46,8 +46,12 @@ The harness scenarios live in `test/smoke.mjs` and drive real app functions
    - **App regression** — the code in `index.html` broke. This is the important
      case. Report the function, the line, and the cause.
    - **Stale test** — the harness assumed behaviour that intentionally changed
-     (e.g. a control is gated to setup phase, an id was renamed). Say so; the fix
-     belongs in `test/smoke.mjs`, not the app.
+     (e.g. a control is gated to setup phase, an id was renamed, a function
+     operates on `editingTeam` not `currentTeam`). Say so; the fix belongs in the
+     suite file or `test/harness.mjs`, not the app. Note the common gotchas:
+     setup-only controls are gated pre-kickoff/half-time; for GK sports `onField`
+     includes the keeper; cross-scenario state leaks if a `tickLoop` isn't
+     cancelled (`bootstrap` handles this).
    A `console`/`pageerror` line that isn't offline-CDN noise (three.js, fonts,
    icons, supabase) is always a real defect — chase it.
 
@@ -55,7 +59,7 @@ The harness scenarios live in `test/smoke.mjs` and drive real app functions
 
 - Apply a fix yourself only when it is small, unambiguous, and clearly correct
   (a typo, an off-by-one, a missing guard, or a genuinely stale test assertion).
-  After any edit, re-run `node test/sanity.mjs` then `node test/smoke.mjs` and
+  After any edit, re-run `node test/sanity.mjs` then the affected suite(s) and
   confirm green before reporting.
 - If the fix is non-trivial, touches game/rotation logic, or could be interpreted
   more than one way, do **not** guess — report the diagnosis and the options and
