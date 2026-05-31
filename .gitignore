@@ -1,1 +1,13 @@
-.claude/
+# Local Claude Code state stays private, but the smoke-tester agent + the
+# project SessionStart hook are shared so the automation travels with the repo.
+.claude/*
+!.claude/agents/
+!.claude/hooks/
+!.claude/settings.json
+.claude/settings.local.json
+
+# Node + smoke-test artifacts
+node_modules/
+test/screenshots/
+test-results/
+playwright-report/
