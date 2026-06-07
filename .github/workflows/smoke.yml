@@ -1,9 +1,13 @@
 name: smoke
 
-# Routine app check: runs the headless smoke harness on every PR and on pushes
-# to non-main branches. Fails the run (and blocks merge, if required) on any
-# failed check or unexpected console/page error. Screenshots are uploaded as an
-# artifact for triage.
+# The merge gate. Runs the full automated suite on every PR and on pushes to
+# non-main branches. Branch protection on `main` requires this job to pass
+# before a PR can merge, so broken code can't reach production.
+#   sanity  — fast JS parse of every inline <script> (no browser)
+#   smoke   — core coach journey in headless Chromium (29 checks)
+#   sports  — every sport/format played to summary (220 checks)
+#   edge    — save/resume, injury, live roster edits, etc. (38 checks)
+# Screenshots from all suites are uploaded as an artifact for triage.
 on:
   pull_request:
   push:
@@ -13,7 +17,7 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -30,8 +34,14 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Smoke test
+      - name: Smoke (core journey)
         run: npm run smoke
+
+      - name: Sports matrix (all formats)
+        run: npm run sports
+
+      - name: Edge cases
+        run: npm run edge
 
       - name: Upload screenshots
         if: always()
