@@ -6,6 +6,35 @@
 
 ---
 
+## 🔒 `main` is protected — you cannot push to it directly
+
+As of 2026-06-07, `main` has GitHub branch protection:
+- **No direct pushes.** All changes land via a **pull request**.
+- **Required check: `smoke`** — the CI gate (sanity + smoke + sports + edge, 287
+  checks) must pass before a PR can merge.
+- **Strict / up-to-date** — the PR branch must be current with `main` before merge
+  (this is also a second line of defence against the stale-overwrite bug).
+- No force-pushes, no branch deletion.
+- `enforce_admins` is **off** — the owner keeps an emergency break-glass (see below).
+
+### The everyday workflow (Tier 2)
+1. Work on **`dev`** (or a `feature/*` branch). Push freely — CI runs on every push.
+2. The open PR (`dev → main`, e.g. #9) shows the preview URL + the `smoke` result.
+3. When the PR is green, **merge it** → Vercel auto-deploys `main` to production.
+   (Solo dev: 0 approvals required, so you can merge your own green PR.)
+4. After merging, sync the iCloud copy from `main` before the next edit.
+
+### Break-glass (emergencies only)
+If CI is broken/flaky and you MUST ship a fix:
+```bash
+# temporarily drop the required check, merge, then put it straight back
+gh api -X DELETE repos/PettetArchitects/OSKIMOO_sub-timer/branches/main/protection/required_status_checks
+# ...merge the PR...
+gh api -X PUT repos/PettetArchitects/OSKIMOO_sub-timer/branches/main/protection --input <protection.json>
+```
+
+---
+
 ## ⚠️ The rule that exists because of 2026-06-07
 
 On 2026-06-07 a stale local copy (v2.5.2) was pushed on top of newer live work
