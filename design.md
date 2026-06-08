@@ -1,14 +1,16 @@
 # Sub Timer — Design System
 
-> Last updated: v2.7.83
+> Last updated: v2.8 — field-first game screen + flap-board (Casio/departure-board) display
 > Sub Timer is a single-file PWA for grassroots youth-sports coaches. This document is the canonical reference for every design token and component used in the app. Inspired by Apple's Human Interface Guidelines + Figma's design-system examples.
 
 ---
 
 ## 1. Design principles
 
-1. **Game day clarity over screen real-estate** — the coach is on a sideline in sunlight watching twelve seven-year-olds. Every screen must be readable in one glance. Big DSEG clocks, big sub buttons, no precious typography.
-2. **One consistent app shell, many views** — two persistent anchors (top brand bar + bottom tab bar) wrap every screen so the coach never loses orientation. Per-page chrome lives inside that shell.
+1. **Game day clarity over screen real-estate** — the coach is on a sideline in sunlight watching twelve seven-year-olds. Every screen must be readable in one glance. Big clocks, big sub buttons, no precious typography.
+2. **Field-first on the game screen (v2.8)** — during a live match the pitch is the hero. Chrome above and below it is squeezed hard (one-row score+clock eyebrow, one-row bench, compact dashboard) so the field claims ~60-67% of the phone viewport. Everything that isn't the field earns its pixels or gets cut/hidden to the Plan page.
+3. **Digital-display aesthetic for numbers** — time and score read like a **Casio LCD / airport departure board**: the DSEG 7-segment font on dark split-flap tiles (`flapBoard`, §4.4). Numeric data = board; words = normal type.
+4. **One consistent app shell, many views** — two persistent anchors (top brand bar + bottom tab bar) wrap every screen so the coach never loses orientation. Per-page chrome lives inside that shell. The bottom tab bar is the single menu surface for the whole app (gear → contextual menu).
 3. **Auto by default, custom by intent** — the app picks fair subs unless the coach explicitly builds a plan. The custom path is one tap deeper, not the default.
 4. **Tactile, gestural** — tap to swap, long-press for injury sub, drag to reorder. Buttons are large; hit targets exceed 44×44pt.
 5. **Dark by default** — coaches use this outdoors in glare; dark UI with high-contrast accent colors reads better than light, and matches the iOS PWA aesthetic.
@@ -146,7 +148,10 @@ The app has two **persistent anchors** that frame every screen.
 - `position:fixed; bottom:0; left:0; right:0`
 - Padding 6px top, `calc(6px + env(safe-area-inset-bottom))` bottom
 - Background `var(--surface-card-2)` with 1px top border `var(--border-subtle)`
-- 3 tabs: **Game** (sport-aware ball icon) · **Plan** (clipboard) · **Team** (people)
+- **5 tabs (v2.8)**: **Home** (house) · **Game** (sport-aware ball) · **Plan** (clipboard) · **Squad** (people+check) · **Menu** (gear)
+  - **Home** → team list / start screen via `showScr('home')+renderHome()`; preserves the active game (`G`) so it resumes on re-entry.
+  - **Squad** = merged Team + Roster. Lands on the availability page (`s1`, "who's here today"); an **Edit** button in that page's header opens the full team editor (`editTeam`). The Squad tab stays highlighted for both. (Replaces the old separate Team + Roster tabs.)
+  - **Menu** is the app-wide menu surface — opens the contextual side drawer via `toggleGlobalMenu` (Game → Edit Team / Sub Plan / End game; etc., plus settings). The per-screen hamburgers (`#gameMenuBtn` …) are retired in favour of this one gear; the brand-bar `#globalMenuBtn` is hidden on the game screen (`body.on-game`).
 - Each tab is 62px min-width, 22×22px icon stacked above 10px label
 - Active tab: tint `var(--accent-cyan-tint)`, text `var(--accent-cyan)`, 14px pill background
 - Inactive: text `var(--text-muted)`, no background
@@ -181,6 +186,19 @@ All `.scr` screens:
 - `padding-bottom: calc(58px + env(safe-area-inset-bottom))` — clears tab bar
 
 Game screen (`#s4`) and Plan screen (`#subOrderOv`) override with overflow:hidden flex layout — their internal bottom-band (`#gameDash` / `#planControlBand`) absorbs the tab-bar offset via inline padding.
+
+### 3.6 Game-screen layout — field-first (v2.8)
+
+`#s4` is a `height:100dvh; overflow:hidden` flex column tuned so the **pitch is the hero** (~60-67% of the phone viewport). Top → bottom:
+
+1. **Brand eyebrow** — the persistent `#appBrandBar` (its hamburger hidden here; menu = bottom gear).
+2. **Clock eyebrow** (`#clkArea`) — the two **flap-board clocks** centred on one row. Each clock's **supportive label sits beside the digits, stacked in two rows** to the clock's height: half clock = label LEFT (`1ST` / `HALF`, `flex-direction:row-reverse`), sub clock = label RIGHT (`NEXT` / `SUB`). The `+/-` steppers are removed — **tap a clock to edit** (`openSubSettings`). The half clock **counts down** (`fmtHalf`).
+3. **Pitch** (`#pitchMid`, `flex:1`) — the 3D `afl3d` field. On phone it defaults to the high **"Top"** camera (`defaultPitchView()`), which fills the portrait container; larger screens keep "Behind". (Leaving the Plan page resets the camera out of its landscape `top-h` board view, or the pitch letterboxes — see `closeSubOrder`/`switchToView`.)
+4. **Pitch controls + score** — overlaid on the dark strip at the pitch bottom: view toggle LEFT, formation button RIGHT, and the **score as a glassy hover pill** centred between them (`#scoreArea`, `backdrop-filter:blur`, still `+/-` to adjust).
+5. **Bench** (`#benchTop`) — a **single horizontal row** of chips (scrolls sideways if long). No "Next on" label or reorder chevrons; the green (next-on) vs amber (later) pill colour carries priority. Per-player **minutes are hidden** on the game screen (they live on the Plan page).
+6. **Dashboard** (`#gameDash`) — RESET / Undo / START, compact.
+
+Subtractive rule: anything that isn't the field is squeezed or cut. Per-player time, wave labels, reorder arrows, and the score's own header band were all removed/relocated to grow the pitch.
 
 ---
 
@@ -249,19 +267,20 @@ Tinted by context (red for half-length, green for sub-every, cyan for players-pe
 
 ### 4.2 Chip / Pill
 
-#### 4.2.1 Player chip — bench
+#### 4.2.1 Player chip — bench (`.benchPill`, v2.8)
+
+Compact chip on the one-row game bench. Layout: **position badge** · **incoming name** (green if next-on / grey if later) · **outgoing name** (amber, on a second line). Deliberately minimal:
+- **No minutes** (`.benchMins` hidden on `#s4` — minutes live on the Plan page).
+- **No arrow** on the swap — the amber colour of the outgoing name carries the meaning.
+- **No "Next on" label** (`.benchWaveTag` hidden) and **no reorder chevrons** (`.benchReorder` hidden) on the one-row strip — green vs amber pill colour signals priority; reorder lives on the Plan page.
 
 ```css
-display: inline-flex;
-gap: 4px;
-padding: 4px 10px;
-background: rgba(240,165,0,.10);
-border: 1px solid rgba(240,165,0,.35);
-border-radius: 14px;
-font-size: 12px;
-font-weight: 700;
-color: #f0a500;
+/* row: padding 3px 6-8px; border-radius 6-7px; flex-shrink:0 (one-row strip) */
+/* next-on:   bg #0a1a16, border #00d4aa  (green) */
+/* later wave: bg #0a1628, border #1e2a45, "SUB" amber badge */
 ```
+
+The strip itself: `#benchTop` → `.benchGrid { display:flex; flex-wrap:nowrap; overflow-x:auto }` so all chips sit on one line and scroll sideways when the bench is long.
 
 #### 4.2.2 Player chip — on field
 
@@ -298,8 +317,11 @@ overflow: hidden;
 
 Internal padding 8-12px. Often has a header row with an eyebrow label (10px, weight 800, 1.2px letter-spacing, uppercase) on the left and optional action chips on the right.
 
-### 4.4 DSEG clock
+### 4.4 Digital display — DSEG type + flap board
 
+The app's signature numeric display: the **DSEG-7 Classic** segment font (Casio-LCD look). Two forms:
+
+**Plain DSEG** — used where a single value floats on a surface (Plan-page scrub clock, sub-order modal):
 ```css
 font-family: 'DSEG', monospace;
 font-size: min(13vw, 56px);
@@ -309,7 +331,14 @@ font-variant-numeric: tabular-nums;
 line-height: 1;
 ```
 
-Used everywhere a time value is displayed. Colours:
+**Flap board (`flapBoard()` + `.flap-board`/`.flap-tile`)** — the **airport departure-board / split-flap** treatment, used for the game-screen clock and reusable for any numeric/score display:
+- `flapBoard(text)` wraps each character in a `.flap-tile`; `:` and ` ` render as bare `.flap-sep` separators (no tile).
+- Each tile is a **two-tone split-flap**: lighter top half → 1px dark **seam** at 50% → darker bottom half, via one `linear-gradient`. Subtle inner top highlight + bottom shade sell the physical flap.
+- Tile char uses the **DSEG** font (the "flipper"/Casio digits); `color:inherit` so the parent's state colour still tints it (white half-clock, green sub-clock, red/amber warn-alert).
+- All sizes are `em`-based, so the board scales with the parent `font-size`. Tiles are wider than plain digits — size the parent so the board fits its row (game eyebrow: ~27px so both clocks fit side-by-side; stack the two clocks if a bigger board is wanted).
+- **Reusable as a heading** for numeric content. Note: DSEG-7 is digit-oriented — for *letter* headings use a 14-segment sibling (`DSEG14`) or keep the flap tiles with a normal bold font.
+
+Colours (apply to the parent; tiles inherit):
 - White / `var(--text-primary)` — main game time
 - `var(--accent-green)` — countdown to next sub (running)
 - `var(--accent-cyan)` — scrubbed-off-live state
@@ -568,6 +597,15 @@ When introducing or modifying components: update this document **first**, then i
 - ✅ Tab bar hidden on landing pages + daily quote (v2.7.80)
 - ✅ Home cleanup — single hamburger / no floating buttons (v2.7.81 → .82)
 - ✅ Hamburger → side drawer with Donate + Feedback footer (v2.7.83)
+- ✅ **Field-first game screen** — pitch maximised to ~60-67% of viewport (v2.8)
+- ✅ **Flap-board (Casio/departure-board) clock** — `flapBoard()` + `.flap-tile`, DSEG digits on split-flap tiles (v2.8)
+- ✅ Clock eyebrow: side-stacked labels, tap-to-edit (steppers removed), half counts down (v2.8)
+- ✅ Score lifted to a glassy hover pill between the pitch controls (v2.8)
+- ✅ One-row bench; per-player minutes / wave labels / reorder arrows removed from game screen (v2.8)
+- ✅ Bottom nav → 5 tabs incl. **Home**; **Team + Roster merged → Squad**; per-screen hamburgers → one **Menu gear** (v2.8)
+- ✅ Brand eyebrow reinstated on game screen (hamburger hidden); fixed Plan→Game pitch clipping (`top-h` camera reset) (v2.8)
+
+> ⚠️ **v2.8 verified only on**: Dragonflies (7v7 soccer) at 390×844. **Not yet checked**: AFL (22 players / 3D pitch / one-row bench overflow), netball, 11v11, large benches, and tablet/desktop widths. Pressure-test these before release.
 - ✅ Single app header (hamburger LEFT · logo CENTRE · version RIGHT) (v2.7.82)
 
 ### Still open
