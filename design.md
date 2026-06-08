@@ -187,18 +187,18 @@ All `.scr` screens:
 
 Game screen (`#s4`) and Plan screen (`#subOrderOv`) override with overflow:hidden flex layout — their internal bottom-band (`#gameDash` / `#planControlBand`) absorbs the tab-bar offset via inline padding.
 
-### 3.6 Game-screen layout — field-first (v2.8)
+### 3.6 Game-screen layout (v2.8)
 
-`#s4` is a `height:100dvh; overflow:hidden` flex column tuned so the **pitch is the hero** (~60-67% of the phone viewport). Top → bottom:
+`#s4` is a `height:100dvh; overflow:hidden` flex column. The visual order is set by flex `order` (not source order) into a clear hierarchy — **glanceable info up top, one clean field, actions at the bottom**. Top → bottom:
 
 1. **Brand eyebrow** — the persistent `#appBrandBar` (its hamburger hidden here; menu = bottom gear).
-2. **Clock eyebrow** (`#clkArea`) — the two **flap-board clocks** centred on one row. Each clock's **supportive label sits beside the digits, stacked in two rows** to the clock's height: half clock = label LEFT (`1ST` / `HALF`, `flex-direction:row-reverse`), sub clock = label RIGHT (`NEXT` / `SUB`). The `+/-` steppers are removed — **tap a clock to edit** (`openSubSettings`). The half clock **counts down** (`fmtHalf`).
-3. **Pitch** (`#pitchMid`, `flex:1`) — the 3D `afl3d` field. On phone it defaults to the high **"Top"** camera (`defaultPitchView()`), which fills the portrait container; larger screens keep "Behind". (Leaving the Plan page resets the camera out of its landscape `top-h` board view, or the pitch letterboxes — see `closeSubOrder`/`switchToView`.)
-4. **Pitch controls + score** — overlaid on the dark strip at the pitch bottom: view toggle LEFT, formation button RIGHT, and the **score as a glassy hover pill** centred between them (`#scoreArea`, `backdrop-filter:blur`, still `+/-` to adjust).
-5. **Bench** (`#benchTop`) — a **single horizontal row** of chips (scrolls sideways if long). No "Next on" label or reorder chevrons; the green (next-on) vs amber (later) pill colour carries priority. Per-player **minutes are hidden** on the game screen (they live on the Plan page).
-6. **Dashboard** (`#gameDash`) — RESET / Undo / START, compact.
+2. **Clock eyebrow** (`#clkArea`, `order:-1`) — the two **flap-board clocks** centred on one row. Each clock's **supportive label sits beside the digits, stacked in two rows** to the clock's height: half clock = label LEFT (`1ST` / `HALF`, `flex-direction:row-reverse`), sub clock = label RIGHT (`NEXT` / `SUB`). `+/-` steppers removed — **tap a clock to edit** (`openSubSettings`). The half clock **counts down** (`fmtHalf`). Only the **sub** clock changes colour for a sub (warn/alert); the half clock stays white and its label follows it (`syncHalfLbl`).
+3. **Bench** (`#benchTop`, `order:0`) — directly below the clock, a reserved **~19dvh** band laid out as a **2-column block** (scrolls vertically when long). Next-on chips green, later waves amber `SUB`; no "Next on" label, no reorder chevrons, no minutes (those live on the Plan page).
+4. **Field** (`#pitchZone` → `#pitchMid`, `order:1`, `flex:1`) — the 3D `afl3d` pitch, one clean block. On phone it defaults to the high **"Top"** camera (`defaultPitchView()`), nudged up (`_topShiftZ`) and **tight-fit** (`autoFit` 0.98×) to fill the area; centre line a little high. Shirts have **no jersey numbers** on iPhone (`.shirtNum`/`.fc-shirt-num` hidden; netball bibs kept). (Leaving the Plan page resets the camera out of its landscape `top-h` view or the pitch letterboxes — see `closeSubOrder`/`switchToView`.)
+5. **Pitch controls + score** — overlaid on the dark strip at the pitch bottom: view toggle LEFT, formation button RIGHT, **score as a glassy hover pill** centred between them (`#scoreArea`, still `+/-`).
+6. **Dashboard** (`#gameDash`, `order:2`) — RESET / Undo / START in the bottom thumb zone.
 
-Subtractive rule: anything that isn't the field is squeezed or cut. Per-player time, wave labels, reorder arrows, and the score's own header band were all removed/relocated to grow the pitch.
+Rationale: the bench is **glanced, not tapped** (subs auto-fire), so it belongs with the clock in the top glance-zone; the field is an uninterrupted visual; the buttons you actually press sit at the bottom.
 
 ---
 
