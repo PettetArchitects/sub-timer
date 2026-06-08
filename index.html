@@ -155,16 +155,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   border:1px solid #000!important;border-radius:11px!important;
   box-shadow:0 2px 4px rgba(0,0,0,.55), inset 0 0 0 1px rgba(180,186,176,.18), inset 0 1px 0 rgba(255,255,255,.08)!important;
   margin:5px 8px 4px!important;padding:3px!important;
+  display:flex!important;align-items:stretch!important;gap:2px!important;   /* bezel row: [ADJUST][LCD][LIGHT] */
 }
-/* LCD screen inside the steel case — dark frame around the grey-green glass */
-#clkArea > div:first-child, #planClockAnchor > div:first-child{
+/* LCD screen inside the dark case — info zone, no touch points */
+.lcd-screen{
+  flex:1!important;min-width:0!important;
   background:linear-gradient(180deg,#c6ccba,#a7ad99)!important;
   border:2px solid #20241a!important;border-radius:6px!important;
   box-shadow:inset 0 2px 5px rgba(16,24,6,.42)!important;
   padding:3px 9px!important;box-sizing:border-box!important;
-  min-height:46px!important;align-items:center!important;gap:12px!important;   /* fixed metrics = same band height */
+  min-height:46px!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:12px!important;
 }
-#clkArea .tmr-c, #planClockAnchor .tmr-c{color:#23271c!important;font-size:44px!important;font-style:italic!important} /* half clock = main display, slanted like the AE1200 LCD */
+/* Bezel buttons = the touch points (etched vertical labels on the dark case) */
+.bezel-btn{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0 1px;
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  color:#9aa090;font-size:8.5px;font-weight:800;letter-spacing:1px;
+  writing-mode:vertical-rl;transform:rotate(180deg);-webkit-tap-highlight-color:transparent;
+}
+.bezel-btn:active{color:#e4e8de}
+.bezel-btn.bezel-light{color:#c0633f}   /* LIGHT etched in the watch's red/orange */
+#clkArea .tmr-c, #planClockAnchor .tmr-c{color:#23271c!important;font-size:44px!important} /* half clock = main display */
 #clkArea #hLbl{color:#3a4030!important}
 #clkArea .tmr-c::before, #planClockAnchor .tmr-c::before{opacity:.17} /* off-segments read on the light panel */
 /* Sub-timer circular complication — a Casio radar-style dark ring on the light LCD,
@@ -175,11 +186,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .sub-dial .sd-track{fill:none;stroke:rgba(30,36,20,.16);stroke-width:3}
 .sub-dial .sd-arc{fill:none;stroke:#23271c;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:113.1;stroke-dashoffset:0;transition:stroke-dashoffset .35s linear}
 .sub-dial .sd-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;pointer-events:none}
-.sub-dial .sd-time{font-family:'DSEG',monospace;font-size:9px;color:#23271c;letter-spacing:0;line-height:1;white-space:nowrap;font-style:italic}
+.sub-dial .sd-time{font-family:'DSEG',monospace;font-size:9px;color:#23271c;letter-spacing:0;line-height:1;white-space:nowrap}
 .sub-dial .sd-lbl{font-size:6px;font-weight:800;letter-spacing:.6px;color:#46503a;line-height:1;margin-top:1px}
 /* Backlight / ILLUMINATOR — tap the watch face to fire the Casio EL green glow. */
-#clkArea > div:first-child, #planClockAnchor > div:first-child{transition:background .22s ease, box-shadow .22s ease}
-#clkArea.lit > div:first-child, #planClockAnchor.lit > div:first-child{
+.lcd-screen{transition:background .22s ease, box-shadow .22s ease}
+.lit .lcd-screen{
   background:radial-gradient(ellipse at 50% 36%, #c8f066 0%, #a6dd3a 60%, #8bc722 100%)!important;
   box-shadow:inset 0 2px 5px rgba(40,60,10,.26), inset 0 0 16px rgba(70,100,12,.22)!important;
 }
@@ -1050,30 +1061,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
        The countdown group is hidden in breaks-only mode / no bench / etc.
        v2.7.19: id="clkArea" lets the landscape media query lift this row
        up into the header so timer+score share one row. -->
-  <div id="clkArea" onclick="toggleBacklight(event)" title="Tap to toggle the backlight" style="text-align:center;padding:12px 0 4px;flex-shrink:0">
-    <div style="display:flex;align-items:flex-start;justify-content:center;gap:min(5vw,32px);flex-wrap:nowrap">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div class="tmr-c" id="clk" style="margin:0;line-height:1;cursor:pointer">00:00</div>
-        <div id="hLbl" style="font-size:13px;color:#eee;font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap;cursor:pointer">1ST HALF</div>
-        <!-- v2.7.23: inline half-length editor under the game clock. Buttons call clkAdj('hm', ±1). -->
-        <div class="clk-stepper" style="display:inline-flex;align-items:center;gap:6px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.35);border-radius:14px;padding:2px 6px;font-size:11px;color:#ff7088;font-weight:700;letter-spacing:.3px">
-          <button onclick="clkAdj('hm',-1)" aria-label="Shorter half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
-          <span id="clkHmV" style="min-width:22px;text-align:center;font-variant-numeric:tabular-nums">10</span>
-          <span style="opacity:.7">min half</span>
-          <button onclick="clkAdj('hm',1)" aria-label="Longer half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
-        </div>
+  <div id="clkArea" style="flex-shrink:0">
+    <button class="bezel-btn" onclick="openSubSettings()" aria-label="Adjust timing">ADJUST</button>
+    <div class="lcd-screen">
+      <div style="display:flex;flex-direction:row;align-items:center;gap:5px">
+        <div id="hLbl" style="font-size:9px;color:#3a4030;font-weight:800;letter-spacing:.3px;line-height:1.05;text-align:right;white-space:normal;max-width:30px">1ST HALF</div>
+        <div class="tmr-c" id="clk" style="margin:0;line-height:1">00:00</div>
+        <span id="clkHmV" style="display:none">10</span>
       </div>
       <!-- v2.8: sub timer is now a circular dial complication (Casio sub-dial). The
            ring depletes toward the next sub; centre shows the countdown. updateClkSub
            drives #clkSub (centre) + #subDialArc (ring). #clkSfV kept (hidden) for refs. -->
-      <div id="clkSubGrp" class="sub-dial" onclick="event.stopPropagation();openSubSettings()" title="Tap to edit half length + sub timing" style="display:none;cursor:pointer">
+      <div id="clkSubGrp" class="sub-dial" style="display:none">
         <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="sd-ticks" cx="22" cy="22" r="21"/><circle class="sd-track" cx="22" cy="22" r="18"/><circle class="sd-arc" id="subDialArc" cx="22" cy="22" r="18"/></svg>
         <div class="sd-center"><div id="clkSub" class="sd-time">00:00</div><div id="clkSubLbl" class="sd-lbl">SUB</div></div>
         <span id="clkSfV" style="display:none">5</span>
       </div>
     </div>
-    <div id="nsi" style="margin-top:6px;font-size:12px;color:#888;font-weight:600;letter-spacing:.3px;min-height:14px"></div>
+    <button class="bezel-btn bezel-light" onclick="toggleBacklight(event)" aria-label="Backlight">LIGHT</button>
   </div>
+  <div id="nsi" style="order:-1;text-align:center;font-size:12px;color:#888;font-weight:600;letter-spacing:.3px;min-height:0;flex-shrink:0"></div>
 
   <!-- Pitch — fills the middle, flexes to whatever space is left. v2.7.9 wraps it in
        a position:relative parent so the View cycle button can sit overlaid bottom-left. -->
@@ -1168,7 +1175,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <!-- v2.7.56/64: Clock anchor — same padding (12px 0 4px) + no background, no
        border as the game-screen #clkArea so the clock sits in exactly the same
        visual position on both pages. -->
-  <div id="planClockAnchor" onclick="toggleBacklight(event)" title="Tap to toggle the backlight" style="padding:12px 0 4px;flex-shrink:0;text-align:center"></div>
+  <div id="planClockAnchor" style="flex-shrink:0"></div>
   <!-- Scrollable body — full-page real estate for the strategy controls + the sub timeline. -->
   <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box">
     <!-- v2.7.65: all sub controls grouped in a single horizontal row right under
@@ -9075,18 +9082,20 @@ function renderPlanClockAnchor(){
   // green sub, big DSEG, tap to edit timing (openSubSettings). The min-half/min-subs
   // stepper pills are gone (same as the game); timing is edited via the tap modal.
   const pStack=periodLbl(st.period).toUpperCase().split(' ').map(x=>`<div>${x}</div>`).join('');
-  host.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:nowrap">
+  host.innerHTML=`<button class="bezel-btn" onclick="openSubSettings()" aria-label="Adjust timing">ADJUST</button>
+  <div class="lcd-screen">
     <div style="display:flex;flex-direction:row;align-items:center;gap:5px">
       <div style="font-size:9px;color:#3a4030;font-weight:800;letter-spacing:.3px;line-height:1.05;text-align:right;white-space:nowrap;max-width:30px">${pStack}</div>
       <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:#eee">${fmtHalf(st.time)}</div>
     </div>
-    <div onclick="event.stopPropagation();openSubSettings()" title="Tap to edit half length + sub timing" style="cursor:pointer;display:flex;align-items:center">
+    <div style="display:flex;align-items:center">
       <div class="sub-dial">
         <svg viewBox="0 0 44 44"><circle class="sd-ticks" cx="22" cy="22" r="21"/><circle class="sd-track" cx="22" cy="22" r="18"/><circle class="sd-arc" cx="22" cy="22" r="18"/></svg>
         <div class="sd-center"><div class="sd-time">${String(cfg.sf||0).padStart(2,'0')}:00</div><div class="sd-lbl">SUB</div></div>
       </div>
     </div>
-  </div>`;
+  </div>
+  <button class="bezel-btn bezel-light" onclick="toggleBacklight(event)" aria-label="Backlight">LIGHT</button>`;
 }
 function renderPlanControlBand(){
   const host=document.getElementById('planControlBand');
