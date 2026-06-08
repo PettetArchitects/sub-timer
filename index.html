@@ -211,8 +211,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   #s4 #hLbl{font-size:9px!important;letter-spacing:.3px!important;white-space:normal!important;max-width:28px!important;text-align:right!important;line-height:1.05!important;margin:0!important}
   #s4 #clkSubLbl{font-size:9px!important;letter-spacing:.3px!important;white-space:normal!important;max-width:28px!important;text-align:left!important;line-height:1.05!important;margin:0!important}
   #s4 #nsi{display:none!important}
-  /* iPhone: drop player numbers — the jersey-number badge clutters the small pills. */
-  #s4 .fc-shirt-num{display:none!important}
+  /* iPhone: drop player numbers — the jersey number clutters the small pills.
+     .shirtNum is the SVG number on the 3D/field shirts; .fc-shirt-num is the CSS
+     pitch; .benchJersey is the bench "#n". Netball position bibs are NOT hidden. */
+  #s4 .fc-shirt-num,#s4 .shirtNum{display:none!important}
   #s4 .benchJersey{display:none!important}
   /* v2.8: maximise the field on phone. The bench was collapsing to ONE column
      at 390px (minmax(190px) auto-fit) → tall stacked cards eating ~26dvh. Force
@@ -2531,6 +2533,7 @@ const afl3d={
   DIMS:{ afl:{W:135,L:165,shape:'oval',goalH:7}, soccer:{W:104,L:160,shape:'rect',goalH:4}, netball:{W:76.5,L:153,shape:'rect',goalH:15}, basketball:{W:15,L:28,shape:'rect',goalH:3.05}, waterpolo:{W:20,L:30,shape:'rect',goalH:0.9} },
   sport:'afl', FIELD_W:135, FIELD_L:165, groundGrp:null,
   renderer:null, scene:null, camera:null, controls:null, wrap:null, overlay:null, raf:null, locked:false, view:null,
+  _topShiftZ:18,   // v2.8: top-down view nudges the field up so the centre line sits a little higher on screen
   pills:[],          // field pills (formation %): {el, x, y}
   benchPills:[],     // sideline pills (world XYZ already resolved): {el, wx, wy, wz}
   worldOf(px,py,h){ return new THREE.Vector3((px/100-0.5)*this.FIELD_W, h||0, (py/100-0.5)*this.FIELD_L); },
@@ -2828,9 +2831,12 @@ const afl3d={
     const dir=new THREE.Vector3(P[0],P[1],P[2]).normalize();
     // Hard-reset the orbit frame: restore up, place camera along dir, re-aim. Without the up reset a prior near-vertical view leaves the azimuth rotated.
     this.camera.up.set(0,1,0);
-    this.controls.target.set(0,0,0);
-    this.camera.position.copy(dir.multiplyScalar(this._fitD||260));
-    this.camera.lookAt(0,0,0);
+    // v2.8: nudge the framing of the top-down game view so the field's centre
+    // line sits a little higher on screen (target shifts along the length axis).
+    const _tz=(name==='top')?(this._topShiftZ||0):0;
+    this.controls.target.set(0,0,_tz);
+    this.camera.position.copy(dir.multiplyScalar(this._fitD||260)).add(this.controls.target);
+    this.camera.lookAt(this.controls.target);
     this.controls.update();
     this.autoFit();
     if(this.viewsEl) [...this.viewsEl.querySelectorAll('button[data-v]')].forEach(b=>b.classList.toggle('active',b.dataset.v===name));
@@ -6255,7 +6261,7 @@ function shirtSvg(num,bib){
     const fs=bib.length>=3?7:bib.length===2?9:10;
     inner=`<text x="12" y="20.5" text-anchor="middle" font-size="${fs}" font-weight="900" fill="currentColor" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" letter-spacing="-0.2">${bib}</text>`;
   } else if(num){
-    inner=`<text x="12" y="20.5" text-anchor="middle" font-size="11" font-weight="900" fill="currentColor" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif">${num}</text>`;
+    inner=`<text class="shirtNum" x="12" y="20.5" text-anchor="middle" font-size="11" font-weight="900" fill="currentColor" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif">${num}</text>`;
   }
   return `<svg viewBox="0 0 24 28"><path d="M8.5 1.5L7 2 2 4.5 1 9.5 4.5 11 5 26.5 19 26.5 19.5 11 23 9.5 22 4.5 17 2 15.5 1.5 14 4 13 5 11 5 10 4 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.18" stroke-linejoin="round" stroke-linecap="round"/>${inner}</svg>`;
 }
