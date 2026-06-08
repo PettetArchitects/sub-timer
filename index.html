@@ -166,6 +166,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    :not(.fc-sub-in) keeps the "↑incoming" badge). */
 #s4 .fc-mins:not(.fc-sub-in){display:none!important}
 #s4 .benchMins{display:none!important}
+/* === v2.8 EXPERIMENTAL LAYOUT FORK (?fork=1) ===
+   Re-orders the game screen via flex `order`: BENCH on top → FIELD → CLOCK just
+   above the play/pause (dashboard) row. Everything else shifts up. Same markup,
+   pure reorder, so it's a true side-by-side comparison of the default layout. */
+.fork #s4 > div:first-child{order:-3!important}                 /* collapsed score header — keep at very top */
+.fork #s4 > #benchTop{order:-2!important;border-bottom:1px solid #243049!important}  /* bench at the top */
+.fork #s4 > #pitchZone{order:-1!important}                      /* field */
+.fork #s4 > #fmtRow{order:0!important}
+.fork #s4 > #clkArea{order:1!important;border-top:1px solid #243049!important;padding-top:5px!important}  /* clock above the dashboard */
+.fork #s4 > #gameDash{order:2!important}                        /* play/pause row */
 /* iPhone / narrow-portrait: tighten the stacked score header so it clears
    the absolutely-positioned ✕ end-game button. Stacking itself is now the
    default in renderScore (not media-query-gated). */
@@ -996,7 +1006,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 
   <!-- Pitch — fills the middle, flexes to whatever space is left. v2.7.9 wraps it in
        a position:relative parent so the View cycle button can sit overlaid bottom-left. -->
-  <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column">
+  <div id="pitchZone" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column">
     <div id="pitchMid" style="flex:1;min-height:0;overflow:hidden;padding:6px 14px 2px;display:flex;flex-direction:column"></div>
     <button id="viewToggle" onclick="cycleView()" aria-label="Cycle camera view" style="display:none;position:absolute;bottom:8px;left:14px;background:rgba(13,18,30,.85);border:1px solid #2a3550;color:#9fb3c8;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:800;letter-spacing:.4px;cursor:pointer;backdrop-filter:blur(4px);align-items:center;gap:6px;z-index:30;font-family:inherit"></button>
     <!-- v2.7.29: Formation toggle moves off the bottom dashboard onto the bottom-right of the pitch overlay (mirror of viewToggle bottom-left). Hidden for sports with a fixed single formation (netball / AFL). -->
@@ -1325,6 +1335,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 try{localStorage.removeItem('subTimerTheme');document.documentElement.removeAttribute('data-theme');}catch(e){}
 
 // ===== CLOUD SYNC (Supabase) =====
+// v2.8: experimental layout fork — ?fork=1 reorders the game screen (bench on top,
+// clock just above the play/pause row). Toggle on <html> so CSS can switch layouts.
+try{ if(new URLSearchParams(location.search).get('fork')==='1') document.documentElement.classList.add('fork'); }catch(e){}
 const SUPABASE_URL='https://grvrigrxujbnmullixiz.supabase.co';
 const SUPABASE_KEY='sb_publishable_kMIAVFBTRB2Tk-lODUiO5w_PCq3YF_6';
 const sb=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}}):null;
