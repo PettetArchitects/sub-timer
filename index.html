@@ -257,10 +257,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   #s4 #gameDash{padding-top:6px!important;gap:6px!important}
   #s4 #gameDash .gd-btn{min-height:42px!important;padding:5px 4px!important;font-size:10px!important;gap:2px!important}
   #s4 #gameDash .gd-btn svg{width:16px!important;height:16px!important}
-  /* v2.8: the app's brand eyebrow stays across the top on the game screen too
-     (reinstated). Its menu hamburger is hidden here since the bottom-nav gear is
-     the menu now — the bar just carries the SUB TIMER wordmark + version. */
-  body.on-game #globalMenuBtn{display:none!important}
+  /* v2.8: the brand bar carries only the wordmark + version when the bottom nav is
+     up — its hamburger is redundant (the nav's Menu gear is the menu). Hidden
+     whenever the nav shows (home/game/plan/squad); returns on the picker flow. */
+  body.nav-shown #globalMenuBtn{display:none!important}
   /* v2.7.9: drop the "↑Incoming" badge inside the outgoing player's pill on
      mobile — it clashes with the position/name/minutes on narrow screens.
      Larger viewports keep it for the at-a-glance "who's coming on for whom". */
@@ -3200,8 +3200,10 @@ function renderViewSwitcher(){
   // The Game / Plan / Team tabs are only meaningful once the coach is INSIDE a team.
   // v2.8: nav stays visible on home too — only hidden during the new-team picker flow.
   const onLanding=['sportPicker','gradePicker'].some(id=>{const el=document.getElementById(id);return el&&el.classList.contains('active');});
-  if(onLanding){ host.style.display='none'; }
-  else { host.style.display='flex'; }
+  // v2.8: flag whether the bottom nav is showing — its Menu gear replaces the
+  // brand-bar hamburger, so hide that hamburger whenever the nav is up.
+  if(onLanding){ host.style.display='none'; document.body.classList.remove('nav-shown'); }
+  else { host.style.display='flex'; document.body.classList.add('nav-shown'); }
   // v2.7.81: donate FAB is home-only. Show on home, hide everywhere else.
   const fab=document.getElementById('coffeeFab');
   if(fab){ const home=document.getElementById('home'); fab.style.display=(home&&home.classList.contains('active'))?'flex':'none'; }
