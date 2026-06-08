@@ -161,9 +161,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   padding:7px 9px!important;box-sizing:border-box!important;
   min-height:54px!important;align-items:center!important;gap:12px!important;   /* fixed metrics = same band height */
 }
-#clkArea .tmr-c, #planClockAnchor .tmr-c{color:#23271c!important;font-size:36px!important} /* dark segments, sized to fit the bezel */
-#clkArea #hLbl, #clkArea #clkSubLbl{color:#3a4030!important}
+#clkArea .tmr-c, #planClockAnchor .tmr-c{color:#23271c!important;font-size:44px!important} /* half clock = main display (sub is now a dial) */
+#clkArea #hLbl{color:#3a4030!important}
 #clkArea .tmr-c::before, #planClockAnchor .tmr-c::before{opacity:.17} /* off-segments read on the light panel */
+/* Sub-timer circular complication — a Casio radar-style dark ring on the light LCD,
+   countdown in the centre. Replaces the digital sub clock; frees the band width. */
+.sub-dial{position:relative;width:54px;height:54px;flex-shrink:0}
+.sub-dial > svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
+.sub-dial .sd-track{fill:none;stroke:rgba(30,36,20,.16);stroke-width:3}
+.sub-dial .sd-arc{fill:none;stroke:#23271c;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:113.1;stroke-dashoffset:0;transition:stroke-dashoffset .35s linear}
+.sub-dial .sd-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;pointer-events:none}
+.sub-dial .sd-time{font-family:'DSEG',monospace;font-size:11px;color:#23271c;letter-spacing:.5px;line-height:1}
+.sub-dial .sd-lbl{font-size:6px;font-weight:800;letter-spacing:.6px;color:#46503a;line-height:1;margin-top:1px}
 .tmr-c.warn{color:#f0a500}.tmr-c.alert{color:#e94560;animation:pulse .5s infinite alternate}.tmr-c.sub-now{color:#e94560;animation:sub-flash .4s ease-in-out infinite alternate}
 /* Next-sub countdown digit display — SAME size as the main clock now (v2.7.3) so the two read as a matched pair. Green by default. */
 .tmr-c.tmr-sub{letter-spacing:1.5px;color:#00d4aa}
@@ -1043,16 +1052,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
           <button onclick="clkAdj('hm',1)" aria-label="Longer half" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(233,69,96,.2);color:#ff7088;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
         </div>
       </div>
-      <div id="clkSubGrp" style="display:none;flex-direction:column;align-items:center;gap:4px">
-        <div class="tmr-c tmr-sub" id="clkSub" onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="margin:0;line-height:1;color:#00d4aa;cursor:pointer">05:00</div>
-        <div id="clkSubLbl" onclick="openSubSettings()" style="font-size:13px;color:#00d4aa;font-weight:800;letter-spacing:1.5px;line-height:1.15;text-align:center;white-space:nowrap;cursor:pointer">NEXT SUB</div>
-        <!-- v2.7.23: inline sub-frequency editor under the sub countdown. -->
-        <div class="clk-stepper" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.35);border-radius:14px;padding:2px 6px;font-size:11px;color:#00d4aa;font-weight:700;letter-spacing:.3px">
-          <button onclick="clkAdj('sf',-1)" aria-label="Sub more often" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">−</button>
-          <span id="clkSfV" style="min-width:22px;text-align:center;font-variant-numeric:tabular-nums">5</span>
-          <span style="opacity:.7">min subs</span>
-          <button onclick="clkAdj('sf',1)" aria-label="Sub less often" style="width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,212,170,.2);color:#00d4aa;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">+</button>
-        </div>
+      <!-- v2.8: sub timer is now a circular dial complication (Casio sub-dial). The
+           ring depletes toward the next sub; centre shows the countdown. updateClkSub
+           drives #clkSub (centre) + #subDialArc (ring). #clkSfV kept (hidden) for refs. -->
+      <div id="clkSubGrp" class="sub-dial" onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="display:none;cursor:pointer">
+        <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="sd-track" cx="22" cy="22" r="18"/><circle class="sd-arc" id="subDialArc" cx="22" cy="22" r="18"/></svg>
+        <div class="sd-center"><div id="clkSub" class="sd-time">00:00</div><div id="clkSubLbl" class="sd-lbl">SUB</div></div>
+        <span id="clkSfV" style="display:none">5</span>
       </div>
     </div>
     <div id="nsi" style="margin-top:6px;font-size:12px;color:#888;font-weight:600;letter-spacing:.3px;min-height:14px"></div>
@@ -6911,13 +6917,17 @@ function updateClkSub(){
   // none left). When a sub is DUE/overdue, show 00:00 — don't vanish (that read
   // as the sub timer "bugging out").
   if(cfg.breaksOnly||ns===null||!G.bench||!G.bench.length){ if(grp) grp.style.display='none'; return; }
+  if(grp) grp.style.display='';
+  const total=(cfg.sf||1)*60;
   const d=Math.max(0,ns-G.secs), m=Math.floor(d/60), s=d%60;
-  if(grp) grp.style.display='flex';
   cs.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-  cs.className='tmr-c tmr-sub'+(d<=10?' alert':(d<=30?' warn':''));
-  // Title colour follows the countdown urgency so it reads at-a-glance.
-  const lbl=document.getElementById('clkSubLbl');
-  if(lbl) lbl.style.color=d<=10?'#e94560':(d<=30?'#f0a500':'#00d4aa');
+  // Urgency tint on the light LCD — dark amber, then dark red, as the next sub nears.
+  const col=d<=10?'#a8281e':(d<=30?'#876312':'#23271c');
+  cs.style.color=col;
+  const lbl=document.getElementById('clkSubLbl'); if(lbl) lbl.style.color=d<=30?col:'#46503a';
+  // Ring depletes from full → empty over the sub interval.
+  const arc=document.getElementById('subDialArc');
+  if(arc){ const C=113.1, f=Math.max(0,Math.min(1,d/total)); arc.style.strokeDashoffset=String(C*(1-f)); arc.style.stroke=col; }
 }
 let _lastWholeSec=-1;
 function tickLoop(now){
@@ -9052,9 +9062,11 @@ function renderPlanClockAnchor(){
       <div style="font-size:9px;color:#3a4030;font-weight:800;letter-spacing:.3px;line-height:1.05;text-align:right;white-space:nowrap;max-width:30px">${pStack}</div>
       <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:#eee">${fmtHalf(st.time)}</div>
     </div>
-    <div onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="display:flex;flex-direction:row;align-items:center;gap:5px;cursor:pointer">
-      <div class="tmr-c" style="margin:0;line-height:1;color:#00d4aa">${fmtTime((cfg.sf||0)*60)}</div>
-      <div style="font-size:9px;color:#3a4030;font-weight:800;letter-spacing:.3px;line-height:1.05;text-align:left;white-space:nowrap;max-width:30px"><div>SUB</div><div>EVERY</div></div>
+    <div onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="cursor:pointer;display:flex;align-items:center">
+      <div class="sub-dial">
+        <svg viewBox="0 0 44 44"><circle class="sd-track" cx="22" cy="22" r="18"/><circle class="sd-arc" cx="22" cy="22" r="18"/></svg>
+        <div class="sd-center"><div class="sd-time">${fmtTime((cfg.sf||0)*60)}</div><div class="sd-lbl">SUB</div></div>
+      </div>
     </div>
   </div>`;
 }
