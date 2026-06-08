@@ -195,15 +195,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
      is lifted out of the header and hovers over the top of the field (below). */
   /* Split-flap board clock — tiles are wider than plain digits, so the font is
      sized so both boards (half + sub) fit the eyebrow row. Both equal. */
-  #s4 .tmr-c{font-size:23px!important;letter-spacing:0!important}
-  #s4 #clkArea{position:static!important;padding:7px 8px 6px!important;margin:0!important;flex-shrink:0!important}
-  #s4 #clkArea > div:first-child{gap:24px!important;align-items:center!important;justify-content:center!important;flex-wrap:nowrap!important}
+  #s4 .tmr-c{font-size:28px!important;letter-spacing:0!important}
+  #s4 #clkArea{position:static!important;padding:7px 6px 6px!important;margin:0!important;flex-shrink:0!important}
+  #s4 #clkArea > div:first-child{gap:16px!important;align-items:center!important;justify-content:center!important;flex-wrap:nowrap!important}
+  /* tighten the colon separator + inter-tile gap to buy back width for the bigger
+     digits, so the two clocks keep a clear gap between them */
+  #s4 .flap-board{gap:.13em!important}
+  #s4 .flap-tile.flap-sep{min-width:.12em!important}
   /* Each clock: the label sits BESIDE the digits, stacked into two rows to the
      clock height. Half clock = label on the LEFT; sub clock = label on the RIGHT. */
-  #s4 #clkArea > div:first-child > div:first-child{flex-direction:row-reverse!important;align-items:center!important;gap:6px!important}
-  #s4 #clkSubGrp{flex-direction:row!important;align-items:center!important;gap:6px!important}
-  #s4 #hLbl{font-size:10px!important;letter-spacing:.4px!important;white-space:normal!important;max-width:32px!important;text-align:right!important;line-height:1.05!important;margin:0!important}
-  #s4 #clkSubLbl{font-size:10px!important;letter-spacing:.4px!important;white-space:normal!important;max-width:32px!important;text-align:left!important;line-height:1.05!important;margin:0!important}
+  #s4 #clkArea > div:first-child > div:first-child{flex-direction:row-reverse!important;align-items:center!important;gap:4px!important}
+  #s4 #clkSubGrp{flex-direction:row!important;align-items:center!important;gap:4px!important}
+  #s4 #hLbl{font-size:9px!important;letter-spacing:.3px!important;white-space:normal!important;max-width:28px!important;text-align:right!important;line-height:1.05!important;margin:0!important}
+  #s4 #clkSubLbl{font-size:9px!important;letter-spacing:.3px!important;white-space:normal!important;max-width:28px!important;text-align:left!important;line-height:1.05!important;margin:0!important}
   #s4 #nsi{display:none!important}
   /* v2.8: maximise the field on phone. The bench was collapsing to ONE column
      at 390px (minmax(190px) auto-fit) → tall stacked cards eating ~26dvh. Force
