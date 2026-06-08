@@ -149,15 +149,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    (#planClockAnchor). DARK BEZEL (unifying frame) wraps a LIGHTER LCD screen with
    dark segments. Identical markup metrics on both pages → no height shift. === */
 #clkArea, #planClockAnchor{
-  background:linear-gradient(180deg,#20231a,#0a0c06)!important;   /* dark bezel */
-  border:1px solid #000!important;border-radius:12px!important;
-  box-shadow:0 2px 4px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07)!important;
-  margin:6px 8px 5px!important;padding:4px!important;
+  /* Casio Royale (A168) brushed-steel bezel */
+  background:linear-gradient(180deg,#e8eaec 0%,#c0c4c8 45%,#9da1a6 55%,#cccfd2 100%)!important;
+  border:1px solid #6c7075!important;border-radius:11px!important;
+  box-shadow:0 2px 4px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.75), inset 0 -1px 1px rgba(0,0,0,.32)!important;
+  margin:6px 8px 5px!important;padding:5px!important;
 }
-/* light LCD screen inside the bezel — first child is the clock flex-row on both */
+/* LCD screen inside the steel case — dark frame around the grey-green glass */
 #clkArea > div:first-child, #planClockAnchor > div:first-child{
-  background:linear-gradient(180deg,#c6ccba,#a8ae9a)!important;border-radius:8px!important;
-  box-shadow:inset 0 2px 5px rgba(16,24,6,.36), inset 0 -1px 0 rgba(255,255,255,.32)!important;
+  background:linear-gradient(180deg,#c6ccba,#a7ad99)!important;
+  border:2px solid #20241a!important;border-radius:6px!important;
+  box-shadow:inset 0 2px 5px rgba(16,24,6,.42)!important;
   padding:7px 9px!important;box-sizing:border-box!important;
   min-height:54px!important;align-items:center!important;gap:12px!important;   /* fixed metrics = same band height */
 }
@@ -171,7 +173,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .sub-dial .sd-track{fill:none;stroke:rgba(30,36,20,.16);stroke-width:3}
 .sub-dial .sd-arc{fill:none;stroke:#23271c;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:113.1;stroke-dashoffset:0;transition:stroke-dashoffset .35s linear}
 .sub-dial .sd-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;pointer-events:none}
-.sub-dial .sd-time{font-family:'DSEG',monospace;font-size:11px;color:#23271c;letter-spacing:.5px;line-height:1}
+.sub-dial .sd-time{font-family:'DSEG',monospace;font-size:9px;color:#23271c;letter-spacing:0;line-height:1;white-space:nowrap}
 .sub-dial .sd-lbl{font-size:6px;font-weight:800;letter-spacing:.6px;color:#46503a;line-height:1;margin-top:1px}
 .tmr-c.warn{color:#f0a500}.tmr-c.alert{color:#e94560;animation:pulse .5s infinite alternate}.tmr-c.sub-now{color:#e94560;animation:sub-flash .4s ease-in-out infinite alternate}
 /* Next-sub countdown digit display — SAME size as the main clock now (v2.7.3) so the two read as a matched pair. Green by default. */
@@ -6920,7 +6922,7 @@ function updateClkSub(){
   if(grp) grp.style.display='';
   const total=(cfg.sf||1)*60;
   const d=Math.max(0,ns-G.secs), m=Math.floor(d/60), s=d%60;
-  cs.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  cs.textContent=m+':'+String(s).padStart(2,'0');   // compact (no leading zero) — fits the small dial
   // Urgency tint on the light LCD — dark amber, then dark red, as the next sub nears.
   const col=d<=10?'#a8281e':(d<=30?'#876312':'#23271c');
   cs.style.color=col;
@@ -9065,7 +9067,7 @@ function renderPlanClockAnchor(){
     <div onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="cursor:pointer;display:flex;align-items:center">
       <div class="sub-dial">
         <svg viewBox="0 0 44 44"><circle class="sd-track" cx="22" cy="22" r="18"/><circle class="sd-arc" cx="22" cy="22" r="18"/></svg>
-        <div class="sd-center"><div class="sd-time">${fmtTime((cfg.sf||0)*60)}</div><div class="sd-lbl">SUB</div></div>
+        <div class="sd-center"><div class="sd-time">${(cfg.sf||0)}:00</div><div class="sd-lbl">SUB</div></div>
       </div>
     </div>
   </div>`;
