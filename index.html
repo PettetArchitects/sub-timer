@@ -170,12 +170,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
    Re-orders the game screen via flex `order`: BENCH on top → FIELD → CLOCK just
    above the play/pause (dashboard) row. Everything else shifts up. Same markup,
    pure reorder, so it's a true side-by-side comparison of the default layout. */
-.fork #s4 > div:first-child{order:-3!important}                 /* collapsed score header — keep at very top */
-.fork #s4 > #benchTop{order:-2!important;border-bottom:1px solid #243049!important}  /* bench at the top */
-.fork #s4 > #pitchZone{order:-1!important}                      /* field */
-.fork #s4 > #fmtRow{order:0!important}
-.fork #s4 > #clkArea{order:1!important;border-top:1px solid #243049!important;padding-top:5px!important}  /* clock above the dashboard */
-.fork #s4 > #gameDash{order:2!important}                        /* play/pause row */
+.fork #s4 > div:first-child{order:-2!important}                 /* collapsed score header — very top */
+.fork #s4 > #clkArea{order:-1!important}                        /* CLOCK stays the top eyebrow */
+.fork #s4 > #benchTop{order:0!important;border-bottom:1px solid #243049!important}  /* BENCH directly below the clock */
+.fork #s4 > #pitchZone{order:1!important}                       /* FIELD */
+.fork #s4 > #fmtRow{order:1!important}
+.fork #s4 > #gameDash{order:2!important}                        /* play/pause row at the bottom */
 /* iPhone / narrow-portrait: tighten the stacked score header so it clears
    the absolutely-positioned ✕ end-game button. Stacking itself is now the
    default in renderScore (not media-query-gated). */
