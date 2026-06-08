@@ -9028,7 +9028,7 @@ function renderPlanClockAnchor(){
   host.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:nowrap">
     <div onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="display:flex;flex-direction:row;align-items:center;gap:5px;cursor:pointer">
       <div style="font-size:9px;color:#eee;font-weight:800;letter-spacing:.3px;line-height:1.05;text-align:right;white-space:nowrap;max-width:30px">${pStack}</div>
-      <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:#eee">${fmtTime(st.time)}</div>
+      <div id="planScrubClock" class="tmr-c" style="margin:0;line-height:1;color:#eee">${fmtHalf(st.time)}</div>
     </div>
     <div onclick="openSubSettings()" title="Tap to edit half length + sub timing" style="display:flex;flex-direction:row;align-items:center;gap:5px;cursor:pointer">
       <div class="tmr-c" style="margin:0;line-height:1;color:#00d4aa">${fmtTime((cfg.sf||0)*60)}</div>
